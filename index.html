@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#050509">
+<title>For Tracy 💗</title>
+
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+body {
+    background: #050509;
+    color: #fff;
+    font-family: "Courier New", monospace;
+}
+
+/* ---------- INTRO ---------- */
+
+#intro {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    background:
+        radial-gradient(circle at center, #17101c 0%, #050509 65%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    transition: opacity 1.2s ease, visibility 1.2s ease;
+}
+
+#intro.hide {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.terminal {
+    width: min(650px, 94vw);
+    min-height: 390px;
+    background: rgba(10, 10, 15, .95);
+    border: 1px solid rgba(255, 105, 180, .25);
+    border-radius: 15px;
+    box-shadow:
+        0 0 50px rgba(255, 0, 119, .12),
+        inset 0 0 40px rgba(255,255,255,.015);
+    overflow: hidden;
+}
+
+.terminal-top {
+    height: 42px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 15px;
+    background: #111116;
+    border-bottom: 1px solid #24242b;
+}
+
+.dot {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+}
+
+.red { background: #ff5f57; }
+.yellow { background: #ffbd2e; }
+.green { background: #28c840; }
+
+.terminal-title {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #777;
+    font-size: 12px;
+}
+
+.code {
+    padding: 25px 20px;
+    font-size: clamp(12px, 2.8vw, 15px);
+    line-height: 1.8;
+    color: #b9b9c7;
+    white-space: pre-wrap;
+}
+
+.pink {
+    color: #ff71b7;
+}
+
+.purple {
+    color: #c792ea;
+}
+
+.green-text {
+    color: #7ee787;
+}
+
+.white {
+    color: #fff;
+}
+
+.cursor {
+    display: inline-block;
+    width: 8px;
+    height: 16px;
+    background: #ff71b7;
+    animation: blink .8s infinite;
+    vertical-align: middle;
+}
+
+@keyframes blink {
+    50% { opacity: 0; }
+}
+
+/* ---------- MAIN ---------- */
+
+#main {
+    position: fixed;
+    inset: 0;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 1.5s ease;
+    background:
+        radial-gradient(circle at 50% 35%, rgba(255, 20, 120, .13), transparent 32%),
+        radial-gradient(circle at 20% 80%, rgba(150, 40, 255, .08), transparent 30%),
+        #050509;
+}
+
+#main.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* stars */
+
+.star {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background: white;
+    border-radius: 50%;
+    opacity: .6;
+    animation: twinkle 3s infinite ease-in-out;
+}
+
+@keyframes twinkle {
+    0%, 100% { opacity: .15; transform: scale(.7); }
+    50% { opacity: 1; transform: scale(1.4); }
+}
+
+/* ---------- CONTENT ---------- */
+
+.content {
+    position: relative;
+    z-index: 3;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 25px;
+}
+
+.small {
+    color: #ff80bd;
+    font-size: 12px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    margin-bottom: 25px;
+    opacity: .8;
+}
+
+.heart-container {
+    position: relative;
+    width: 145px;
+    height: 145px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 25px;
+}
+
+.heart-glow {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: rgba(255, 20, 120, .1);
+    filter: blur(25px);
+    animation: pulseGlow 2s infinite;
+}
+
+.big-heart {
+    font-size: 90px;
+    filter:
+        drop-shadow(0 0 10px rgba(255, 40, 130, .8))
+        drop-shadow(0 0 35px rgba(255, 40, 130, .5));
+    animation: heartbeat 1.4s infinite ease-in-out;
+}
+
+@keyframes heartbeat {
+    0%, 100% { transform: scale(1); }
+    15% { transform: scale(1.12); }
+    30% { transform: scale(1); }
+    45% { transform: scale(1.08); }
+}
+
+@keyframes pulseGlow {
+    50% { transform: scale(1.3); opacity: .5; }
+}
+
+h1 {
+    font-family: Georgia, serif;
+    font-weight: 400;
+    font-size: clamp(42px, 11vw, 82px);
+    letter-spacing: 3px;
+    background: linear-gradient(
+        90deg,
+        #fff,
+        #ff9acb,
+        #fff,
+        #ff72b7
+    );
+    background-size: 250%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: shine 5s linear infinite;
+}
+
+@keyframes shine {
+    to { background-position: 250%; }
+}
+
+.name {
+    font-family: Georgia, serif;
+    font-size: clamp(55px, 15vw, 105px);
+    font-style: italic;
+    color: #ff77b9;
+    text-shadow:
+        0 0 10px rgba(255, 80, 160, .5),
+        0 0 40px rgba(255, 80, 160, .25);
+    margin-top: -5px;
+}
+
+.message {
+    max-width: 650px;
+    margin-top: 20px;
+    color: #aaa;
+    font-family: Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.8;
+    padding: 0 10px;
+}
+
+.message strong {
+    color: #fff;
+}
+
+/* ---------- BUTTON ---------- */
+
+#surprise {
+    margin-top: 30px;
+    padding: 13px 25px;
+    border-radius: 30px;
+    border: 1px solid rgba(255, 105, 180, .45);
+    background: rgba(255, 60, 140, .08);
+    color: #ff9dcc;
+    font-family: monospace;
+    cursor: pointer;
+    transition: .3s;
+}
+
+#surprise:hover {
+    background: rgba(255, 60, 140, .2);
+    box-shadow: 0 0 25px rgba(255, 50, 140, .25);
+    transform: translateY(-2px);
+}
+
+/* ---------- FLOATING HEARTS ---------- */
+
+.float-heart {
+    position: fixed;
+    bottom: -40px;
+    z-index: 2;
+    pointer-events: none;
+    animation: floatUp linear forwards;
+    opacity: .8;
+}
+
+@keyframes floatUp {
+    0% {
+        transform: translateY(0) scale(.5) rotate(0);
+        opacity: 0;
+    }
+    15% {
+        opacity: .9;
+    }
+    100% {
+        transform:
+            translateY(-110vh)
+            translateX(var(--x))
+            scale(1.2)
+            rotate(25deg);
+        opacity: 0;
+    }
+}
+
+/* ---------- SURPRISE MODAL ---------- */
+
+#modal {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    background: rgba(0,0,0,.82);
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 25px;
+    opacity: 0;
+    visibility: hidden;
+    transition: .5s;
+}
+
+#modal.open {
+    opacity: 1;
+    visibility: visible;
+}
+
+.letter {
+    width: min(550px, 94vw);
+    background:
+        linear-gradient(145deg, rgba(255,255,255,.07), rgba(255,255,255,.02));
+    border: 1px solid rgba(255, 120, 190, .25);
+    border-radius: 20px;
+    padding: 35px 25px;
+    text-align: center;
+    box-shadow: 0 0 70px rgba(255, 0, 120, .15);
+}
+
+.letter h2 {
+    font-family: Georgia, serif;
+    font-size: 35px;
+    font-weight: 400;
+    color: #ff8fc5;
+    margin-bottom: 20px;
+}
+
+.letter p {
+    color: #ccc;
+    font-family: Arial, sans-serif;
+    line-height: 1.9;
+    font-size: 15px;
+}
+
+.close {
+    margin-top: 25px;
+    border: 0;
+    background: transparent;
+    color: #ff82bd;
+    cursor: pointer;
+    font-family: monospace;
+}
+
+/* ---------- MOBILE ---------- */
+
+@media (max-height: 650px) {
+    .heart-container {
+        width: 100px;
+        height: 100px;
+        margin-bottom: 10px;
+    }
+
+    .big-heart {
+        font-size: 65px;
+    }
+
+    .message {
+        margin-top: 10px;
+        font-size: 13px;
+    }
+
+    #surprise {
+        margin-top: 18px;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<!-- ================= TERMINAL INTRO ================= -->
+
+<section id="intro">
+
+    <div class="terminal">
+
+        <div class="terminal-top">
+            <span class="dot red"></span>
+            <span class="dot yellow"></span>
+            <span class="dot green"></span>
+            <span class="terminal-title">
+                tracy_love.exe
+            </span>
+        </div>
+
+        <div class="code" id="code"></div>
+
+    </div>
+
+</section>
+
+
+<!-- ================= MAIN LOVE PAGE ================= -->
+
+<main id="main">
+
+    <div id="stars"></div>
+
+    <div class="content">
+
+        <div class="small">
+            SYSTEM MESSAGE // 22:09
+        </div>
+
+        <div class="heart-container">
+            <div class="heart-glow"></div>
+            <div class="big-heart">❤️</div>
+        </div>
+
+        <h1>I LOVE YOU</h1>
+
+        <div class="name">
+            Tracy
+        </div>
+
+        <p class="message">
+            Some things can't be explained by code.
+            <br>
+            Some feelings can't be debugged.
+            <br><br>
+            But if my heart had a programming language,
+            <br>
+            <strong>you'd be the only function I'd call forever. 💗</strong>
+        </p>
+
+        <button id="surprise">
+            &lt; open_secret.exe /&gt;
+        </button>
+
+    </div>
+
+</main>
+
+
+<!-- ================= SECRET MESSAGE ================= -->
+
+<div id="modal">
+
+    <div class="letter">
+
+        <h2>One More Thing... 💗</h2>
+
+        <p>
+            Tracy,
+            <br><br>
+
+            I could have simply typed
+            <strong>"I love you"</strong>
+            and sent it to you.
+
+            <br><br>
+
+            But you're a coding girl,
+            so I thought I'd compile my feelings instead. 😂❤️
+
+            <br><br>
+
+            And after running every possible test,
+            there's only one result:
+
+            <br><br>
+
+            <strong>
+                I choose you.
+                <br>
+                Today.
+                Tomorrow.
+                And every day after that.
+            </strong>
+
+            <br><br>
+
+            No bugs. No exceptions.
+            Just love. 💗
+        </p>
+
+        <button class="close" id="close">
+            [ close_secret ]
+        </button>
+
+    </div>
+
+</div>
+
+
+<script>
+
+/* =========================================================
+   LOVE PROGRAM
+   ========================================================= */
+
+const code = document.getElementById("code");
+const intro = document.getElementById("intro");
+const main = document.getElementById("main");
+
+
+const lines = [
+    '<span class="purple">const</span> <span class="pink">tracy</span> = <span class="green-text">"Tracy"</span>;',
+    '',
+    '<span class="purple">let</span> heart = {',
+    '    owner: <span class="green-text">tracy</span>,',
+    '    love: <span class="green-text">true</span>,',
+    '    amount: <span class="green-text">Infinity</span>',
+    '};',
+    '',
+    '<span class="purple">function</span> <span class="pink">myHeart</span>() {',
+    '    <span class="purple">while</span> (true) {',
+    '        love(tracy);',
+    '    }',
+    '}',
+    '',
+    '<span class="green-text">✔</span> compiling feelings...',
+    '<span class="green-text">✔</span> searching heart...',
+    '<span class="green-text">✔</span> Tracy found ❤️',
+    '<span class="green-text">✔</span> love detected: 100%',
+    '',
+    '<span class="pink">SYSTEM:</span> I LOVE YOU TRACY 💗'
+];
+
+
+let lineIndex = 0;
+let charIndex = 0;
+
+
+function typeCode() {
+
+    if (lineIndex >= lines.length) {
+
+        setTimeout(() => {
+            intro.classList.add("hide");
+            main.classList.add("show");
+            startHearts();
+        }, 1600);
+
+        return;
+    }
+
+    const line = lines[lineIndex];
+
+    if (charIndex < line.length) {
+
+        /*
+          We type the HTML string visually by
+          temporarily rendering the complete
+          substring.
+        */
+
+        code.innerHTML =
+            lines
+                .slice(0, lineIndex)
+                .join("<br>") +
+            (lineIndex > 0 ? "<br>" : "") +
+            line.substring(0, charIndex + 1) +
+            '<span class="cursor"></span>';
+
+        charIndex++;
+
+        setTimeout(typeCode, 18);
+
+    } else {
+
+        lineIndex++;
+        charIndex = 0;
+
+        setTimeout(typeCode, line === "" ? 80 : 150);
+    }
+}
+
+
+/* =========================================================
+   STARS
+   ========================================================= */
+
+const stars = document.getElementById("stars");
+
+for (let i = 0; i < 90; i++) {
+
+    const star = document.createElement("div");
+
+    star.className = "star";
+
+    star.style.left = Math.random() * 100 + "%";
+    star.style.top = Math.random() * 100 + "%";
+
+    star.style.animationDelay =
+        Math.random() * 3 + "s";
+
+    stars.appendChild(star);
+}
+
+
+/* =========================================================
+   FLOATING HEARTS
+   ========================================================= */
+
+function createHeart() {
+
+    const heart = document.createElement("div");
+
+    heart.className = "float-heart";
+
+    const symbols = ["❤️", "💗", "💕", "💖", "💘"];
+
+    heart.innerText =
+        symbols[Math.floor(Math.random() * symbols.length)];
+
+    heart.style.left =
+        Math.random() * 100 + "vw";
+
+    heart.style.fontSize =
+        (12 + Math.random() * 20) + "px";
+
+    heart.style.setProperty(
+        "--x",
+        (Math.random() * 180 - 90) + "px"
+    );
+
+    heart.style.animationDuration =
+        (5 + Math.random() * 6) + "s";
+
+    document.body.appendChild(heart);
+
+    setTimeout(() => {
+        heart.remove();
+    }, 12000);
+}
+
+
+function startHearts() {
+
+    setInterval(createHeart, 700);
+
+    for (let i = 0; i < 15; i++) {
+        setTimeout(createHeart, i * 150);
+    }
+}
+
+
+/* =========================================================
+   SECRET MESSAGE
+   ========================================================= */
+
+const surprise = document.getElementById("surprise");
+const modal = document.getElementById("modal");
+const close = document.getElementById("close");
+
+
+surprise.addEventListener("click", () => {
+    modal.classList.add("open");
+});
+
+
+close.addEventListener("click", () => {
+    modal.classList.remove("open");
+});
+
+
+modal.addEventListener("click", (e) => {
+
+    if (e.target === modal) {
+        modal.classList.remove("open");
+    }
+
+});
+
+
+/* =========================================================
+   START
+   ========================================================= */
+
+setTimeout(typeCode, 800);
+
+</script>
+
+</body>
+</html>
