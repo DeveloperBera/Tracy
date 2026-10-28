@@ -13,18 +13,20 @@ if (!DATABASE_URL) {
   console.error('DATABASE_URL is not set. Add it in Render Environment or in your local .env file.');
   process.exit(1);
 }
+const KEITH_BASE = process.env.AI_BASE_URL || 'https://apis.keithsite.lol/';
+const KEITH_PATHS = (process.env.KEITH_PATHS || '/ai/gpt,/ai/claudeai,/ai/gemini,/ai/deepseek,/keithai,/ai/mistral')
+  .split(',').map((s) => s.trim()).filter(Boolean);
+const KEITH_TIMEOUT_MS = Number(process.env.KEITH_TIMEOUT_MS) || 60_000;
+const MAX_URL = 7000;                      // Keith accepts GET query strings only
 const CHAT_URL = process.env.CHAT_URL || 'https://ch.at/v1/chat/completions';
-const CHAT_TIMEOUT_MS = Number(process.env.CHAT_TIMEOUT_MS) || 120_000;
-const MAX_STEPS = 15;        // tool calls allowed for one user message
-const HISTORY_LIMIT = 30;    // recent messages sent to the model on each step
-const MEMORY_LIMIT = 20;     // earlier user requests listed in the system prompt
+const CHAT_TIMEOUT_MS = Number(process.env.CHAT_TIMEOUT_MS) || 180_000;
+const MAX_ATTEMPTS = 2;                    // one try plus one repair
 const MAX_FILE_CHARS = 200_000;
-const READ_LIMIT = 6000;
 const MAX_VERSIONS = 10;
-const FILE_PATH_RE = /^[A-Za-z0-9_][A-Za-z0-9._/-]{0,119}$/;
+const FILE_PATH = 'public/index.html';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const TOOLS = ['write_file', 'read_file', 'list_files', 'check_file', 'done'];
-const AGENT_FOR_TOOL = { write_file: 'Builder', read_file: 'Builder', list_files: 'Builder', check_file: 'QA', done: 'Orchestrator' };
+const FILE_PATH_RE = /^[A-Za-z0-9_][A-Za-z0-9._/-]{0,119}$/;
+const GREETING = /^\s*(hi|hello|hey|yo|sup|hola|test|thanks|thank you|ok|okay)\s*[!.?]*\s*$/i;
 const STARTER_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -35,30 +37,10 @@ const STARTER_HTML = `<!DOCTYPE html>
 </head>
 <body><p>Send a message to the Builder to create this app.</p></body>
 </html>`;
-
-const SYSTEM = [
-  'You are the Builder for BeraForge AI, an agent that writes a web project one file at a time.',
-  'Reply with EXACTLY ONE JSON object per turn. No prose and no markdown fences.',
-  'Tools:',
-  '{"tool":"write_file","path":"public/index.html","content":"<complete file text>"}',
-  '{"tool":"read_file","path":"public/index.html"}',
-  '{"tool":"list_files"}',
-  '{"tool":"check_file","path":"public/index.html"}',
-  '{"tool":"done","summary":"one or two plain sentences for the user"}',
-  'Rules:',
-  '- Paths are relative. Use letters, digits, dot, underscore, hyphen and slash.',
-  '- Write every file completely. Never use placeholders such as "rest of code here".',
-  '- After writing a file, call check_file on it. Fix any reported problem with write_file.',
-  '- HTML files must end with </html>. Put CSS and JavaScript inline unless you create separate files.',
-  '- The preview shows only public/index.html. server.js, package.json and schema.sql are saved for a later phase and are not run yet.',
-  '- Call done only after the requested work is written and checked.',
-].join('\n');
-
-const MIME = {
-  '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8',
-  '.svg': 'image/svg+xml', '.txt': 'text/plain; charset=utf-8',
-};
+const BUILDER_RULES =
+  'Write one complete HTML file with inline CSS and classic inline JavaScript. Use no external libraries, no ' +
+  'imports, and no network calls. Make it responsive and fully working, with no placeholder buttons. Reply with ' +
+  'only one ```html code block containing the whole document, ending with </html>.';
 
 const safePath = (p) => typeof p === 'string' && FILE_PATH_RE.test(p) && !p.includes('..');
 const isUuid = (s) => UUID_RE.test(String(s));
@@ -68,9 +50,9 @@ const now = () => new Date().toISOString();
 const pool = new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: true }, max: 5 });
 const q = (text, params) => pool.query(text, params);
 
-// ---------- Live events (Server-Sent Events) ----------
+// ---------- Live events ----------
 const streams = new Map(); // projectId -> Set of SSE responses
-const running = new Set(); // projects with an agent turn in progress
+const running = new Set(); // projects with a build in progress
 
 function publish(pid, type, data) {
   const set = streams.get(pid);
@@ -86,15 +68,15 @@ async function setStatus(pid, status) {
   publish(pid, 'status', { status });
 }
 
-// Saves a message. Rows with agent and display are shown in the chat. Rows with role user or assistant also go to the model.
-async function save(pid, { role, agent = null, display = null, content = '' }) {
+async function save(pid, { role, agent, display, content = '' }) {
   const r = await q(
     'INSERT INTO messages (project_id, role, agent, display, content) VALUES ($1,$2,$3,$4,$5) RETURNING id, agent, display, created_at',
     [pid, role, agent, display, content]
   );
-  if (agent && display) publish(pid, 'message', toMsg(r.rows[0]));
-  return r.rows[0];
+  publish(pid, 'message', toMsg(r.rows[0]));
 }
+
+const say = (pid, agent, text) => save(pid, { role: 'system', agent, display: text });
 
 async function snapshot(pid) {
   const st = await q('SELECT status FROM projects WHERE id=$1', [pid]);
@@ -108,72 +90,110 @@ async function snapshot(pid) {
   return { status: st.rows[0]?.status || 'draft', messages: msgs.rows.map(toMsg) };
 }
 
-// ---------- Chat provider (ch.at, OpenAI-compatible POST) ----------
-async function chat(messages) {
-  let lastErr;
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      const res = await fetch(CHAT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ messages }),
-        signal: AbortSignal.timeout(CHAT_TIMEOUT_MS),
-      });
-      if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { retry: res.status === 429 || res.status >= 500 });
-      const data = await res.json();
-      const text = data?.choices?.[0]?.message?.content;
-      if (typeof text !== 'string' || !text.trim()) throw new Error('empty reply');
-      return text;
-    } catch (err) {
-      lastErr = err;
-      const retry = err.retry || (err.name !== 'TimeoutError' && !err.message.startsWith('HTTP') && err.message !== 'empty reply');
-      if (!retry) break;
-      await new Promise((r) => setTimeout(r, 2000 * attempt));
-    }
+// ---------- Model providers ----------
+// Reads the reply text from a Keith response. Keith wraps replies as { status, creator, result }.
+function keithText(raw) {
+  let j;
+  try { j = JSON.parse(raw); } catch { return raw; }
+  if (typeof j === 'string') return j;
+  if (j && j.status === false) throw new Error(j.error || 'provider reported failure');
+  for (const k of ['result', 'response', 'answer', 'text', 'message']) {
+    if (typeof j?.[k] === 'string') return j[k];
   }
-  throw new Error(lastErr?.name === 'TimeoutError' ? 'the chat provider timed out' : lastErr.message);
+  return null;
 }
 
-// Reads one JSON object from the reply, even if the model added a code fence.
-function parseAction(text) {
-  const t = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '');
-  const start = t.indexOf('{');
-  const end = t.lastIndexOf('}');
-  if (start === -1 || end <= start) return null;
-  try {
-    const a = JSON.parse(t.slice(start, end + 1));
-    return a && typeof a === 'object' && TOOLS.includes(a.tool) ? a : null;
-  } catch {
-    return null;
-  }
-}
-
-// QA: checks that files compile or parse. Generated code is never executed here.
-function checkContent(p, content) {
+async function askKeith(prompt) {
   const errors = [];
-  if (p.endsWith('.json')) {
-    try { JSON.parse(content); } catch (e) { errors.push(`invalid JSON: ${e.message}`); }
-  } else if (p.endsWith('.js')) {
-    if (/^\s*import\s/m.test(content)) errors.push('use require() instead of import in Node files');
-    try { new Function(content); } catch (e) { errors.push(`syntax error: ${e.message}`); }
-  } else if (p.endsWith('.html')) {
-    if (!/<!doctype html|<html[\s>]/i.test(content)) errors.push('missing <html> start tag');
-    if (!/<\/html>\s*$/i.test(content.trim())) errors.push('file does not end with </html>');
-    const opens = (content.match(/<script\b/gi) || []).length;
-    const closes = (content.match(/<\/script>/gi) || []).length;
-    if (opens !== closes) errors.push('unbalanced <script> tags');
-    for (const [, attrs, body] of content.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
-      if (/\bsrc\s*=/i.test(attrs)) continue;
-      try { new Function(body); } catch (e) { errors.push(`script syntax error: ${e.message}`); }
+  for (const p of KEITH_PATHS) {
+    const url = new URL(p, KEITH_BASE);
+    url.searchParams.set('q', prompt);
+    if (url.href.length > MAX_URL) throw new Error('request is too long for a GET URL');
+    try {
+      const res = await fetch(url, { headers: { Accept: '*/*' }, signal: AbortSignal.timeout(KEITH_TIMEOUT_MS) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = keithText(await res.text());
+      if (!text || !text.trim()) throw new Error('empty reply');
+      return { text, via: `Keith ${p}` };
+    } catch (err) {
+      errors.push(`${p}: ${err.message}`);
     }
-  } else if (p.endsWith('.sql')) {
-    if (!/create\s+table/i.test(content)) errors.push('no CREATE TABLE statement');
-    if (/\bdrop\s+/i.test(content)) errors.push('DROP is not allowed');
+  }
+  throw new Error(errors.join('; '));
+}
+
+async function askChAt(messages) {
+  const res = await fetch(CHAT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages }),
+    signal: AbortSignal.timeout(CHAT_TIMEOUT_MS),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  const text = data?.choices?.[0]?.message?.content;
+  if (typeof text !== 'string' || !text.trim()) throw new Error('empty reply');
+  return { text, via: 'ch.at' };
+}
+
+// Keith first. ch.at only when every Keith endpoint fails or the request is too long for a GET URL.
+async function generate(request, current) {
+  const prompt = current
+    ? `${BUILDER_RULES} Modify this existing file and keep everything the request does not change. Request: ${request}. Existing file: ${current}`
+    : `${BUILDER_RULES} Request: ${request}`;
+  try {
+    return await askKeith(prompt);
+  } catch (keithErr) {
+    const messages = [
+      { role: 'system', content: BUILDER_RULES },
+      { role: 'user', content: current ? `${request}\n\nExisting file:\n${current}` : request },
+    ];
+    try {
+      return await askChAt(messages);
+    } catch (chatErr) {
+      throw new Error(`Keith: ${keithErr.message} | ch.at: ${chatErr.message}`);
+    }
+  }
+}
+
+// ---------- Extraction and QA ----------
+function extractHtml(text) {
+  let body = text;
+  const fence = text.indexOf('```');
+  if (fence !== -1) {
+    const lineEnd = text.indexOf('\n', fence);
+    if (lineEnd !== -1) {
+      const close = text.indexOf('```', lineEnd);
+      body = close === -1 ? text.slice(lineEnd + 1) : text.slice(lineEnd + 1, close);
+    }
+  }
+  const start = body.search(/<!doctype html|<html[\s>]/i);
+  if (start === -1) return null;
+  const end = body.toLowerCase().lastIndexOf('</html>');
+  if (end === -1) return null;
+  return body.slice(start, end + '</html>'.length).trim() + '\n';
+}
+
+// Checks that inline scripts compile. Nothing generated is executed.
+function qaHtml(html) {
+  const errors = [];
+  if (!/<title>\s*\S/i.test(html)) errors.push('missing <title>');
+  const opens = (html.match(/<script\b/gi) || []).length;
+  const closes = (html.match(/<\/script>/gi) || []).length;
+  if (opens !== closes) errors.push('unbalanced <script> tags');
+  for (const [, attrs, body] of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
+    if (/\bsrc\s*=/i.test(attrs) || /\btype\s*=\s*["']?module/i.test(attrs)) continue;
+    try { new Function(body); } catch (e) { errors.push(`JavaScript syntax error: ${e.message}`); }
   }
   return errors;
 }
 
 // ---------- Files and checkpoints ----------
+async function currentFile(pid) {
+  const r = await q('SELECT content FROM project_files WHERE project_id=$1 AND path=$2', [pid, FILE_PATH]);
+  return r.rows[0]?.content ?? null;
+}
+
 async function snapshotFiles(pid, label) {
   const files = await q('SELECT path, content FROM project_files WHERE project_id=$1', [pid]);
   if (!files.rows.length) return;
@@ -185,6 +205,15 @@ async function snapshotFiles(pid, label) {
        (SELECT id FROM project_versions WHERE project_id=$1 ORDER BY created_at DESC LIMIT $2)`,
     [pid, MAX_VERSIONS]
   );
+}
+
+async function upsertFile(pid, p, content) {
+  await q(
+    `INSERT INTO project_files (project_id, path, content, updated_at) VALUES ($1,$2,$3,now())
+     ON CONFLICT (project_id, path) DO UPDATE SET content=EXCLUDED.content, updated_at=now()`,
+    [pid, p, content]
+  );
+  await q('UPDATE projects SET updated_at=now() WHERE id=$1', [pid]);
 }
 
 async function replaceFiles(pid, files) {
@@ -205,145 +234,47 @@ async function replaceFiles(pid, files) {
   }
 }
 
-async function upsertFile(pid, p, content) {
-  await q(
-    `INSERT INTO project_files (project_id, path, content, updated_at) VALUES ($1,$2,$3,now())
-     ON CONFLICT (project_id, path) DO UPDATE SET content=EXCLUDED.content, updated_at=now()`,
-    [pid, p, content]
-  );
-  await q('UPDATE projects SET updated_at=now() WHERE id=$1', [pid]);
-}
-
-// ---------- Tools ----------
-const fail = (m) => ({ display: `Error: ${m}`, model: `Error: ${m}` });
-
-async function runTool(pid, a) {
-  if (a.tool === 'write_file') {
-    if (!safePath(a.path)) return fail(`invalid path "${a.path}"`);
-    if (typeof a.content !== 'string' || !a.content.trim()) return fail('content must be a non-empty string');
-    if (a.content.length > MAX_FILE_CHARS) return fail('file is too large');
-    await upsertFile(pid, a.path, a.content);
-    const msg = `Wrote ${a.path} (${a.content.length} chars).`;
-    return { display: msg, model: msg };
-  }
-  if (a.tool === 'read_file') {
-    if (!safePath(a.path)) return fail(`invalid path "${a.path}"`);
-    const r = await q('SELECT content FROM project_files WHERE project_id=$1 AND path=$2', [pid, a.path]);
-    if (!r.rows[0]) return fail(`${a.path} does not exist`);
-    const text = r.rows[0].content;
-    return {
-      display: `Read ${a.path} (${text.length} chars).`,
-      model: text.length > READ_LIMIT ? `${text.slice(0, READ_LIMIT)}\n[truncated]` : text,
-    };
-  }
-  if (a.tool === 'list_files') {
-    const r = await q('SELECT path, length(content) AS chars FROM project_files WHERE project_id=$1 ORDER BY path', [pid]);
-    const list = r.rows.map((f) => `${f.path} (${f.chars} chars)`).join(', ') || 'no files';
-    return { display: `Files: ${list}`, model: list };
-  }
-  if (a.tool === 'check_file') {
-    if (!safePath(a.path)) return fail(`invalid path "${a.path}"`);
-    const r = await q('SELECT content FROM project_files WHERE project_id=$1 AND path=$2', [pid, a.path]);
-    if (!r.rows[0]) return fail(`${a.path} does not exist`);
-    const errors = checkContent(a.path, r.rows[0].content);
-    if (!errors.length) return { display: `QA passed for ${a.path}.`, model: `QA passed for ${a.path}.` };
-    const msg = `QA found ${errors.length} problem(s) in ${a.path}: ${errors.join('; ')}`;
-    return { display: msg, model: msg };
-  }
-  return fail(`unknown tool ${a.tool}`);
-}
-
-// Compact form stored in history, so old file contents do not fill the model's context.
-function compact(a) {
-  if (a.tool === 'write_file') return { tool: 'write_file', path: a.path, chars: typeof a.content === 'string' ? a.content.length : 0 };
-  if (a.tool === 'done') return { tool: 'done', summary: String(a.summary || '').slice(0, 300) };
-  return { tool: a.tool, path: a.path };
-}
-
-// ---------- Agent turn ----------
-async function modelMessages(pid) {
-  const files = await q('SELECT path, length(content) AS chars FROM project_files WHERE project_id=$1 ORDER BY path', [pid]);
-  const memory = await q(
-    `SELECT display FROM messages WHERE project_id=$1 AND role='user' AND agent='You' ORDER BY id DESC LIMIT $2`,
-    [pid, MEMORY_LIMIT]
-  );
-  const earlier = memory.rows.map((r) => r.display.slice(0, 160)).reverse();
-  const system = [
-    SYSTEM,
-    `Files now: ${files.rows.map((f) => `${f.path} (${f.chars} chars)`).join(', ') || 'none'}`,
-    earlier.length ? `Earlier user requests, oldest first:\n- ${earlier.join('\n- ')}` : '',
-  ].filter(Boolean).join('\n\n');
-
-  const hist = await q(
-    `SELECT role, content FROM (
-       SELECT id, role, content FROM messages WHERE project_id=$1 AND role IN ('user','assistant')
-       ORDER BY id DESC LIMIT $2) t ORDER BY id`,
-    [pid, HISTORY_LIMIT]
-  );
-  const rows = hist.rows.map((r) => ({ role: r.role, content: r.content }));
-  while (rows.length && rows[0].role !== 'user') rows.shift();
-  return [{ role: 'system', content: system }, ...rows];
-}
-
-async function runTurn(pid, text) {
+// ---------- Build ----------
+async function runBuild(pid, request, current) {
   running.add(pid);
-  let finished = false;
+  let ok = false;
   try {
     await setStatus(pid, 'working');
-    await snapshotFiles(pid, text);
-    await save(pid, { role: 'user', agent: 'You', display: text, content: text });
+    await say(pid, 'Builder', current ? 'Updating public/index.html…' : 'Writing public/index.html…');
 
-    for (let step = 1; step <= MAX_STEPS; step++) {
-      let reply;
-      try {
-        reply = await chat(await modelMessages(pid));
-      } catch (err) {
-        await save(pid, { role: 'system', agent: 'Orchestrator', display: `Chat provider failed: ${err.message}`, content: '' });
-        break;
+    let html = null;
+    let feedback = '';
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS && !html; attempt++) {
+      const req = feedback ? `${request} (The previous attempt had these problems, fix them: ${feedback})` : request;
+      const reply = await generate(req, current);
+      await say(pid, 'Builder', `Reply from ${reply.via}`);
+
+      const candidate = extractHtml(reply.text);
+      const errors = candidate ? qaHtml(candidate) : ['the reply had no complete HTML document (it may have been cut off)'];
+      if (!errors.length) {
+        html = candidate;
+        await say(pid, 'QA', 'Checks passed.');
+      } else {
+        feedback = errors.join('; ').slice(0, 300);
+        await say(pid, 'QA', `Problems: ${feedback}`);
+        if (attempt < MAX_ATTEMPTS) await say(pid, 'Builder', 'Trying once more with the fixes…');
       }
-
-      const action = parseAction(reply);
-      if (!action) {
-        await save(pid, {
-          role: 'user', agent: 'QA',
-          display: 'The reply was not a valid tool call. Asking the Builder again.',
-          content: 'Your last reply was not one valid tool call. Reply with exactly one JSON object using one of the listed tools.',
-        });
-        continue;
-      }
-
-      await save(pid, { role: 'assistant', content: JSON.stringify(compact(action)) });
-
-      if (action.tool === 'done') {
-        const summary = String(action.summary || 'Done.').slice(0, 1000);
-        await save(pid, {
-          role: 'assistant', agent: 'Orchestrator', display: summary,
-          content: JSON.stringify({ tool: 'done', summary }),
-        });
-        finished = true;
-        break;
-      }
-
-      const result = await runTool(pid, action);
-      await save(pid, {
-        role: 'user', agent: AGENT_FOR_TOOL[action.tool], display: result.display,
-        content: `Tool result (${action.tool}): ${result.model}`,
-      });
     }
 
-    if (!finished) {
-      await save(pid, {
-        role: 'system', agent: 'Orchestrator',
-        display: `Stopped after ${MAX_STEPS} steps without finishing. Send another message to continue.`,
-        content: '',
-      });
+    if (html) {
+      await snapshotFiles(pid, request);
+      await upsertFile(pid, FILE_PATH, html);
+      await say(pid, 'Builder', `Saved ${FILE_PATH} (${html.length} chars). The preview is updated.`);
+      ok = true;
+    } else {
+      await say(pid, 'Orchestrator', 'Not saved. Your previous file is unchanged. Try again or make the request shorter.');
     }
   } catch (err) {
-    console.error('turn failed:', err);
-    await save(pid, { role: 'system', agent: 'Orchestrator', display: `Turn stopped: ${err.message}`, content: '' }).catch(() => {});
+    await say(pid, 'Orchestrator', `Build stopped: ${err.message}`).catch(() => {});
   } finally {
     running.delete(pid);
-    await setStatus(pid, finished ? 'ready' : 'failed').catch((e) => console.error(e.message));
+    await setStatus(pid, ok ? 'ready' : 'failed').catch((e) => console.error(e.message));
+    publish(pid, 'done', { ok });
   }
 }
 
@@ -386,20 +317,20 @@ app.get('/api/healthz', (req, res) => res.json({ ok: true }));
 
 app.get('/api/status', h(async (req, res) => {
   await q('SELECT 1');
-  res.json({ ok: true, db: 'connected', chatUrl: CHAT_URL, uptimeSeconds: Math.round(process.uptime()), node: process.version });
+  res.json({ ok: true, db: 'connected', keithPaths: KEITH_PATHS, chatFallback: CHAT_URL, uptimeSeconds: Math.round(process.uptime()), node: process.version });
 }));
 
-// Projects
 app.get('/api/projects', h(async (req, res) => {
   const r = await q('SELECT id, name, status, updated_at FROM projects ORDER BY updated_at DESC');
   res.json({ projects: r.rows.map((p) => ({ id: p.id, name: p.name, status: p.status, updatedAt: p.updated_at })) });
 }));
 
 app.post('/api/projects', h(async (req, res) => {
-  const name = String(req.body?.name ?? '').trim().slice(0, 80) || 'Untitled app';
+  const raw = String(req.body?.name ?? '').trim();
+  const name = raw.length > 40 ? raw.slice(0, 40).trim() + '…' : raw || 'Untitled app';
   const id = crypto.randomUUID();
-  await q('INSERT INTO projects (id, name) VALUES ($1,$2)', [id, name]);
-  await q('INSERT INTO project_files (project_id, path, content) VALUES ($1,$2,$3)', [id, 'public/index.html', STARTER_HTML]);
+  await q('INSERT INTO projects (id, name) VALUES ($1,$2)', [id, name.slice(0, 80)]);
+  await q('INSERT INTO project_files (project_id, path, content) VALUES ($1,$2,$3)', [id, FILE_PATH, STARTER_HTML]);
   res.status(201).json(await projectView(id));
 }));
 
@@ -415,17 +346,16 @@ app.patch('/api/projects/:id', requireProject, h(async (req, res) => {
 }));
 
 app.delete('/api/projects/:id', requireProject, h(async (req, res) => {
-  if (running.has(req.project.id)) return res.status(409).json({ error: 'Wait for the agent to finish first' });
+  if (running.has(req.project.id)) return res.status(409).json({ error: 'Wait for the build to finish first' });
   await q('DELETE FROM projects WHERE id=$1', [req.project.id]);
   res.status(204).end();
 }));
 
-// Live events: subscribes first, then sends a snapshot. The client removes duplicate message IDs.
+// Live events: subscribe first, then send a snapshot
 app.get('/api/projects/:id/events', requireProject, h(async (req, res) => {
   const pid = req.project.id;
   res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
   res.flushHeaders();
-
   if (!streams.has(pid)) streams.set(pid, new Set());
   streams.get(pid).add(res);
   const beat = setInterval(() => res.write(': ping\n\n'), 25_000);
@@ -437,24 +367,40 @@ app.get('/api/projects/:id/events', requireProject, h(async (req, res) => {
       if (!set.size) streams.delete(pid);
     }
   });
-
   const snap = await snapshot(pid);
   res.write(`event: snapshot\ndata: ${JSON.stringify(snap)}\n\n`);
 }));
 
-// Send a message to the Builder
+// Send a message. Greetings get a direct reply and never touch the file.
 app.post('/api/projects/:id/messages', requireProject, h(async (req, res) => {
   const pid = req.project.id;
-  if (running.has(pid)) return res.status(409).json({ error: 'The agent is still working on this project' });
-  const text = String(req.body?.text ?? '').trim().slice(0, 2000);
+  if (running.has(pid)) return res.status(409).json({ error: 'The Builder is still working on this project' });
+  const text = String(req.body?.text ?? '').trim().slice(0, 1500);
   if (!text) return res.status(400).json({ error: 'Message is empty' });
+
+  await save(pid, { role: 'user', agent: 'You', display: text, content: text });
+
+  if (GREETING.test(text)) {
+    await say(pid, 'Orchestrator', 'Hi. Describe the app or the change you want, and I will build it.');
+    res.status(202).json({ started: false });
+    // Send the current status after the response, so the client clears its busy state
+    setTimeout(async () => {
+      const st = (await q('SELECT status FROM projects WHERE id=$1', [pid])).rows[0]?.status || 'draft';
+      publish(pid, 'status', { status: st });
+    }, 300);
+    return;
+  }
+
+  // Once the app exists, each message edits it. Start a new project for a different app.
+  const existing = await currentFile(pid);
+  const current = existing && existing !== STARTER_HTML ? existing : null;
   res.status(202).json({ started: true });
-  runTurn(pid, text).catch((err) => console.error('turn crashed:', err));
+  runBuild(pid, text, current).catch((err) => console.error('build crashed:', err));
 }));
 
 // Hand edits from the Code tab
 app.put('/api/projects/:id/file', requireProject, h(async (req, res) => {
-  if (running.has(req.project.id)) return res.status(409).json({ error: 'Wait for the agent to finish first' });
+  if (running.has(req.project.id)) return res.status(409).json({ error: 'Wait for the Builder to finish first' });
   const { path: filePath, content } = req.body || {};
   if (!safePath(filePath)) return res.status(400).json({ error: 'Invalid file path' });
   if (typeof content !== 'string') return res.status(400).json({ error: 'content must be a string' });
@@ -463,10 +409,10 @@ app.put('/api/projects/:id/file', requireProject, h(async (req, res) => {
   res.json({ path: filePath, bytes: Buffer.byteLength(content) });
 }));
 
-// Checkpoints. Restoring saves the current files first, so a restore can be undone.
+// Checkpoints. Restoring saves the current files first, so it can be undone.
 app.post('/api/projects/:id/restore/:versionId', requireProject, h(async (req, res) => {
   const pid = req.project.id;
-  if (running.has(pid)) return res.status(409).json({ error: 'Wait for the agent to finish first' });
+  if (running.has(pid)) return res.status(409).json({ error: 'Wait for the Builder to finish first' });
   if (!isUuid(req.params.versionId)) return res.status(404).json({ error: 'Checkpoint not found' });
   const v = await q('SELECT files FROM project_versions WHERE id=$1 AND project_id=$2', [req.params.versionId, pid]);
   if (!v.rows[0]) return res.status(404).json({ error: 'Checkpoint not found' });
@@ -475,18 +421,21 @@ app.post('/api/projects/:id/restore/:versionId', requireProject, h(async (req, r
   res.json(await projectView(pid));
 }));
 
-// Deploy is Phase 5. Report that honestly.
 app.post('/api/projects/:id/deploy', requireProject, (req, res) => {
   res.status(501).json({ error: 'Deploy is not connected yet. It is planned for Phase 5.' });
 });
 
-// Preview: serves only files under public/. Server code and schema are never served.
+// Preview: serves only files under public/
+const MIME = {
+  '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml', '.txt': 'text/plain; charset=utf-8',
+};
 app.get('/preview/:id', (req, res) => res.redirect(`/preview/${req.params.id}/`));
 app.get('/preview/:id/*', h(async (req, res) => {
   const pid = req.params.id;
   if (!isUuid(pid)) return res.status(404).send('Not found');
-  const rel = req.params[0] || 'index.html';
-  const filePath = `public/${rel}`;
+  const filePath = `public/${req.params[0] || 'index.html'}`;
   const ext = path.extname(filePath).toLowerCase();
   if (!safePath(filePath) || !MIME[ext]) return res.status(404).send('Not found');
   const r = await q('SELECT content FROM project_files WHERE project_id=$1 AND path=$2', [pid, filePath]);
@@ -507,7 +456,6 @@ app.use((err, req, res, next) => {
 async function start() {
   const schema = await fs.readFile(path.join(__dirname, 'schema.sql'), 'utf8');
   await pool.query(schema);
-  // A turn cannot survive a restart, so mark any interrupted one as failed
   await q("UPDATE projects SET status='failed', updated_at=now() WHERE status='working'");
   app.listen(PORT, () => console.log(`BeraForge AI running on port ${PORT}`));
 }
