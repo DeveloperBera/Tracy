@@ -1,6 +1,6 @@
 {
   "name": "beraforge-ai",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "BeraForge AI by Bera Tech - prompt-to-app builder prototype",
   "main": "server.js",
   "private": true,
