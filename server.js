@@ -9,8 +9,16 @@ const express = require('express');
 const PORT = Number(process.env.PORT) || 3000;
 const DATA_FILE = process.env.DATA_FILE || path.join(__dirname, 'data', 'projects.json');
 const AI_BASE_URL = process.env.AI_BASE_URL || 'https://apis.keithsite.lol/';
-const AI_TEXT_PATH = process.env.AI_TEXT_PATH || 'ai/gpt';
-const AI_TIMEOUT_MS = Number(process.env.AI_TIMEOUT_MS) || 60_000;
+const AI_TIMEOUT_MS = Number(process.env.AI_TIMEOUT_MS) || 90_000;
+const TEST_TIMEOUT_MS = 30_000;
+const MAX_ATTEMPTS = 3;          // one generation plus up to two repairs
+const MAX_PROVIDER_TRIES = 3;    // providers tried per request
+const MAX_URL_LENGTH = 7000;     // the upstream API only accepts GET query strings
+const BREAKER_THRESHOLD = 3;     // consecutive failures before a provider cools down
+const BREAKER_COOLDOWN_MS = 120_000;
+const MAX_VERSIONS = 10;
+const DEFAULT_CHAT = 'ai_gpt';
+const FALLBACK_ORDER = ['ai_claudeai', 'ai_gemini', 'ai_deepseek', 'keithai', 'ai_mistral'];
 const VERCEL_TOKEN = process.env.VERCEL_TOKEN || '';
 const VERCEL_TEAM_ID = process.env.VERCEL_TEAM_ID || '';
 const FILE_NAME_RE = /^[A-Za-z0-9._-]{1,100}$/;
@@ -28,8 +36,38 @@ const STARTER_HTML = `<!DOCTYPE html>
 <body><p>Describe your app and press Build to generate it.</p></body>
 </html>`;
 
-// ---------- Persistence (JSON file; swap for Postgres later) ----------
-let db = { projects: [] };
+// ---------- Provider registry (all 34 endpoints from the Keith APIs page) ----------
+const idOf = (p) => p.slice(1).replace(/\//g, '_');
+
+const CHAT_PATHS = [
+  '/keithai', '/ai/gpt', '/ai/claudeai', '/ai/mistral', '/ai/copilot', '/ai/bard',
+  '/ai/perplexity', '/ai/o3', '/ai/chatgpt4', '/ai/venice', '/ai/deepseekr', '/ai/gpt4',
+  '/ai/qwenai', '/ai/metai', '/ai/deepseek', '/ai/blackbox', '/ai/ilama', '/ai/gemini', '/ai/grok',
+];
+
+const PROVIDERS = [
+  ...CHAT_PATHS.map((path) => ({ path, kind: 'chat', example: { q: 'hi' } })),
+  { path: '/ai/wormgpt', kind: 'disabled', example: { q: 'hi' }, note: 'Locked: unfiltered persona, never used' },
+  { path: '/search/ai', kind: 'research', example: { q: 'who is God' } },
+  { path: '/ai/searchai', kind: 'research', example: { query: 'Kenya News today' } },
+  { path: '/whatdoesthiscodedo', kind: 'research', example: { code: "console.log('hi keith');" } },
+  { path: '/ai/vision', kind: 'media', example: { image: 'https://i.imgur.com/t5fTpbk.jpeg', q: "What's in this image" } },
+  { path: '/ai/text2img', kind: 'media', example: { q: 'am a good boy' } },
+  { path: '/ai/lyricsgen', kind: 'media', example: { topic: 'Heartbreak', genre: 'blues', mood: 'sad', structure: 'verse_chorus_bridge', language: 'en' } },
+  { path: '/ai/shazam', kind: 'media', example: { url: 'https://files.catbox.moe/dirk7v.m4a' } },
+  { path: '/ai/txt2music', kind: 'media', example: { q: 'am a good boy' } },
+  { path: '/ai/vocalremover', kind: 'media', example: { url: 'https://files.catbox.moe/xcy8kh.mp3' } },
+  { path: '/ai/transcribe', kind: 'media', example: { q: 'https://keith-files.vercel.app/rtx5wq.mp3' } },
+  { path: '/ai/tts', kind: 'media', example: { q: 'hi' } },
+  { path: '/ai/txt2video2', kind: 'media', example: { q: 'am a good boy' } },
+  { path: '/ai/dreamanalyzer', kind: 'media', example: { q: 'I dreamt about frog chasing me' } },
+  { path: '/ai/speechwriter', kind: 'media', example: { topic: 'how to pass examination', length: 'short', type: 'dedication', tone: 'serious' } },
+].map((p) => ({ ...p, id: idOf(p.path) }));
+
+const PROVIDER_BY_ID = new Map(PROVIDERS.map((p) => [p.id, p]));
+
+// ---------- Persistence (JSON file; replace with Postgres later) ----------
+let db = { projects: [], providerSettings: {} };
 
 async function loadDb() {
   try {
@@ -38,6 +76,16 @@ async function loadDb() {
     if (err.code !== 'ENOENT') throw err;
   }
   db.projects ||= [];
+  db.providerSettings ||= {};
+  for (const p of db.projects) {
+    p.lastLog ||= [];
+    p.versions ||= [];
+    p.deployments ||= [];
+    if (p.status === 'building') {
+      p.status = 'failed';
+      p.lastLog.push({ at: now(), agent: 'System', level: 'error', msg: 'Server restarted during the build' });
+    }
+  }
 }
 
 let writeQueue = Promise.resolve();
@@ -71,42 +119,145 @@ function requireProject(req, res, next) {
   next();
 }
 
-// ---------- AI provider ----------
-function pickText(raw) {
-  try {
-    const j = JSON.parse(raw);
-    if (typeof j === 'string') return j;
-    for (const k of ['result', 'response', 'answer', 'message', 'text', 'data', 'content']) {
-      if (typeof j?.[k] === 'string') return j[k];
-    }
-  } catch {
-    /* not JSON: use raw text */
-  }
-  return raw;
+// ---------- Live events (Server-Sent Events) ----------
+const streams = new Map(); // projectId -> Set of response objects
+
+function publish(p, event) {
+  const set = streams.get(p.id);
+  if (!set) return;
+  const data = `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`;
+  for (const res of set) res.write(data);
 }
 
-async function askAI(prompt) {
-  const url = new URL(AI_TEXT_PATH, AI_BASE_URL);
-  url.searchParams.set('q', prompt);
+function emit(p, agent, level, msg) {
+  const entry = { at: now(), agent, level, msg };
+  p.lastLog = [...p.lastLog, entry].slice(-200);
+  publish(p, { type: 'log', ...entry });
+}
+
+function setStatus(p, status) {
+  p.status = status;
+  p.updatedAt = now();
+  publish(p, { type: 'status', status });
+  persist();
+}
+
+// ---------- Provider health and calls ----------
+const health = new Map(); // in memory only; resets on restart
+
+function healthOf(id) {
+  if (!health.has(id)) {
+    health.set(id, {
+      calls: 0, ok: 0, failed: 0, lastLatencyMs: null, lastError: null,
+      lastOkAt: null, consecutiveFails: 0, cooldownUntil: 0,
+    });
+  }
+  return health.get(id);
+}
+
+function record(id, ok, latencyMs, error) {
+  const h = healthOf(id);
+  h.calls++;
+  h.lastLatencyMs = latencyMs;
+  if (ok) {
+    h.ok++;
+    h.lastOkAt = now();
+    h.lastError = null;
+    h.consecutiveFails = 0;
+    h.cooldownUntil = 0;
+  } else {
+    h.failed++;
+    h.lastError = error;
+    h.consecutiveFails++;
+    if (h.consecutiveFails >= BREAKER_THRESHOLD) h.cooldownUntil = Date.now() + BREAKER_COOLDOWN_MS;
+  }
+}
+
+function isEnabled(p) {
+  if (p.kind === 'disabled') return false;
+  return db.providerSettings[p.id]?.enabled ?? true;
+}
+
+function usable(id) {
+  const p = PROVIDER_BY_ID.get(id);
+  return Boolean(p && p.kind === 'chat' && isEnabled(p) && healthOf(id).cooldownUntil < Date.now());
+}
+
+async function callProvider(p, params, timeoutMs) {
+  const url = new URL(p.path, AI_BASE_URL);
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));
+  if (url.href.length > MAX_URL_LENGTH) throw new Error('request is too long for a GET URL');
+
   let res;
   try {
-    res = await fetch(url, {
-      headers: { Accept: 'application/json, text/plain, */*' },
-      signal: AbortSignal.timeout(AI_TIMEOUT_MS),
-    });
+    res = await fetch(url, { headers: { Accept: '*/*' }, signal: AbortSignal.timeout(timeoutMs) });
   } catch (err) {
-    throw new Error(err.name === 'TimeoutError' ? `timed out after ${AI_TIMEOUT_MS} ms` : err.message);
+    throw new Error(err.name === 'TimeoutError' ? `timed out after ${timeoutMs} ms` : 'network error');
+  }
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+  const type = res.headers.get('content-type') || '';
+  if (!/json|text\//i.test(type)) {
+    const bytes = (await res.arrayBuffer()).byteLength;
+    return { type, bytes, json: null, text: null };
   }
   const raw = await res.text();
-  if (!res.ok) throw new Error(`provider returned HTTP ${res.status}`);
-  return pickText(raw);
+  let json = null;
+  try { json = JSON.parse(raw); } catch { /* plain text reply */ }
+  if (json && typeof json === 'object' && json.status === false) {
+    throw new Error(json.error || json.message || 'provider reported failure');
+  }
+  return { type, bytes: Buffer.byteLength(raw), json, text: json ? null : raw };
 }
 
-const buildInstruction = (prompt) =>
-  'You are a senior front-end engineer. Build the app described below as ONE complete, self-contained HTML document ' +
-  'with inline CSS and inline JavaScript. Use no external libraries or network calls. Make it responsive, polished, ' +
-  'dark-themed and fully working. Return only the code inside a single ```html code block, with no explanation. ' +
-  'App request: ' + prompt;
+function extractText(out) {
+  if (!out.json) return out.text;
+  if (typeof out.json === 'string') return out.json;
+  for (const k of ['result', 'response', 'answer', 'text', 'message', 'content']) {
+    if (typeof out.json[k] === 'string') return out.json[k];
+  }
+  return null;
+}
+
+// Tries the preferred chat provider, then fallbacks. Every switch is reported through emit().
+async function askText(preferred, prompt, emitFn) {
+  const order = [preferred, ...FALLBACK_ORDER.filter((id) => id !== preferred)]
+    .filter(usable)
+    .slice(0, MAX_PROVIDER_TRIES);
+  if (!order.length) throw new Error('no enabled chat provider is available');
+
+  const failures = [];
+  for (const id of order) {
+    const started = Date.now();
+    try {
+      const out = await callProvider(PROVIDER_BY_ID.get(id), { q: prompt }, AI_TIMEOUT_MS);
+      const text = extractText(out);
+      if (!text || !text.trim()) throw new Error('response had no usable text');
+      record(id, true, Date.now() - started);
+      return { provider: id, text };
+    } catch (err) {
+      record(id, false, Date.now() - started, err.message);
+      failures.push(`${id}: ${err.message}`);
+      if (emitFn) emitFn('API', 'warn', `${id} failed (${err.message}); trying the next provider`);
+    }
+  }
+  throw new Error(`all providers failed. ${failures.join('; ')}`);
+}
+
+// ---------- Prompts, extraction, QA ----------
+const plannerPrompt = (req) =>
+  `Plan a single-file web app for this request. Reply with 5 to 8 short numbered items covering layout, features, state and validation. No code. Request: ${req}`;
+
+const builderPrompt = (req, plan) =>
+  [
+    'You are a senior front-end engineer.',
+    'Build the app below as ONE complete HTML document with inline CSS and classic inline JavaScript.',
+    'Use no external libraries, no network calls, and no import or export statements.',
+    'Make it responsive and fully working. Do not use placeholder buttons.',
+    'Return only one ```html code block containing the full document, ending with </html>.',
+    plan ? `Plan: ${plan}` : '',
+    `App request: ${req}`,
+  ].filter(Boolean).join(' ');
 
 function extractHtml(text) {
   const fence = text.match(/```(?:html)?\s*([\s\S]*?)```/i);
@@ -119,15 +270,105 @@ function extractHtml(text) {
   return html.slice(0, end + '</html>'.length).trim();
 }
 
-function staticChecks(html) {
-  const out = [];
-  const count = (re) => (html.match(re) || []).length;
-  if (count(/<script\b/gi) !== count(/<\/script>/gi)) out.push('Unbalanced <script> tags');
-  if (count(/<style\b/gi) !== count(/<\/style>/gi)) out.push('Unbalanced <style> tags');
-  if (!/<title>/i.test(html)) out.push('No <title> element');
+function qaCheck(html) {
+  const errors = [];
+  const warnings = [];
+  const opens = (html.match(/<script\b/gi) || []).length;
+  const closes = (html.match(/<\/script>/gi) || []).length;
+  if (opens !== closes) errors.push('unbalanced <script> tags');
+  if (!/<title>\s*\S/i.test(html)) warnings.push('no page title');
+
+  [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)].forEach(([, attrs, body], i) => {
+    if (/\bsrc\s*=/i.test(attrs)) {
+      warnings.push(`script ${i + 1} loads an external file`);
+      return;
+    }
+    if (/\btype\s*=\s*["']?module/i.test(attrs)) {
+      warnings.push(`script ${i + 1} is a module and was not syntax-checked`);
+      return;
+    }
+    try {
+      new Function(body); // compiles only; nothing is executed
+    } catch (err) {
+      errors.push(`JavaScript syntax error in script ${i + 1}: ${err.message}`);
+    }
+  });
+
   const external = html.match(/https?:\/\/[^\s"'<>)]+/gi) || [];
-  if (external.length) out.push(`Uses ${external.length} external URL(s); they may not load in preview`);
-  return out;
+  if (external.length) warnings.push(`${external.length} external URL(s) may not load in the preview`);
+  return { errors, warnings };
+}
+
+// ---------- Build pipeline: Planner -> Frontend -> QA -> repair -> Integration ----------
+const running = new Set();
+
+async function runBuild(p, request, preferred) {
+  running.add(p.id);
+  const before = p.lastRequest || 'Starter page';
+  const previousHtml = p.files['index.html'];
+  p.lastLog = [];
+  setStatus(p, 'building');
+
+  const note = (agent, level, msg) => emit(p, agent, level, msg);
+  let ok = false;
+
+  try {
+    note('Planner', 'info', `Request: "${request.slice(0, 160)}"`);
+    let plan = '';
+    try {
+      const r = await askText(preferred, plannerPrompt(request), note);
+      plan = r.text.slice(0, 600);
+      note('Planner', 'info', `Plan ready (answered by ${r.provider})`);
+    } catch (err) {
+      note('Planner', 'warn', `No plan, building from the request alone: ${err.message}`);
+    }
+
+    let prompt = builderPrompt(request, plan);
+    let html = null;
+    let qa = { errors: [], warnings: [] };
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      note('Frontend', 'info', attempt === 1 ? 'Generating application' : `Repair attempt ${attempt - 1} of ${MAX_ATTEMPTS - 1}`);
+      const r = await askText(preferred, prompt, note);
+      note('Frontend', 'info', `Reply from ${r.provider}`);
+
+      const candidate = extractHtml(r.text);
+      if (candidate) {
+        html = candidate;
+        qa = qaCheck(html);
+      } else {
+        qa = { errors: ['reply had no complete HTML document (it may have been cut off)'], warnings: [] };
+      }
+      qa.errors.forEach((e) => note('QA', 'error', e));
+      qa.warnings.forEach((w) => note('QA', 'warn', w));
+
+      if (qa.errors.length === 0) {
+        note('QA', 'info', 'Checks passed');
+        break;
+      }
+      // Repairs regenerate with the error list; the GET URL cannot carry the broken HTML.
+      prompt = `${builderPrompt(request, plan)} The previous attempt had these problems, fix them all: ${qa.errors.join('; ').slice(0, 400)}`;
+    }
+
+    if (html && qa.errors.length === 0) {
+      p.versions = [
+        { id: crypto.randomUUID(), at: now(), label: `Before: ${before.slice(0, 120)}`, html: previousHtml },
+        ...p.versions,
+      ].slice(0, MAX_VERSIONS);
+      p.files['index.html'] = html;
+      p.lastRequest = request;
+      note('Integration', 'info', 'Saved index.html. The previous version is under Versions.');
+      ok = true;
+    } else {
+      note('Integration', 'error', 'Not saved: QA errors remain. Your files are unchanged.');
+    }
+  } catch (err) {
+    note('Frontend', 'error', `Build stopped: ${err.message}`);
+  } finally {
+    running.delete(p.id);
+    setStatus(p, ok ? 'ready' : 'failed');
+    publish(p, { type: 'done', ok });
+  }
 }
 
 // ---------- Vercel ----------
@@ -140,10 +381,7 @@ function vercelUrl(pathname) {
 async function vercel(pathname, init = {}) {
   const res = await fetch(vercelUrl(pathname), {
     ...init,
-    headers: {
-      Authorization: `Bearer ${VERCEL_TOKEN}`,
-      'Content-Type': 'application/json',
-    },
+    headers: { Authorization: `Bearer ${VERCEL_TOKEN}`, 'Content-Type': 'application/json' },
     signal: AbortSignal.timeout(30_000),
   });
   const data = await res.json().catch(() => ({}));
@@ -171,17 +409,74 @@ app.use((req, res, next) => {
 });
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
-
 app.get('/api/healthz', (req, res) => res.json({ ok: true }));
 
 app.get('/api/status', (req, res) => res.json({
   ok: true,
   uptimeSeconds: Math.round((Date.now() - STARTED_AT) / 1000),
   projects: db.projects.length,
-  ai: { endpoint: `${AI_BASE_URL}${AI_TEXT_PATH}` },
+  providers: PROVIDERS.length,
+  defaultChat: DEFAULT_CHAT,
   deploy: { provider: VERCEL_TOKEN ? 'vercel' : null, configured: Boolean(VERCEL_TOKEN) },
   node: process.version,
 }));
+
+// Providers
+const providerView = (p) => {
+  const h = healthOf(p.id);
+  return {
+    id: p.id,
+    path: p.path,
+    kind: p.kind,
+    enabled: isEnabled(p),
+    note: p.note || null,
+    params: Object.keys(p.example),
+    usable: usable(p.id),
+    verified: Boolean(h.lastOkAt),
+    lastOkAt: h.lastOkAt,
+    lastLatencyMs: h.lastLatencyMs,
+    calls: h.calls,
+    ok: h.ok,
+    failed: h.failed,
+    lastError: h.lastError,
+    cooldownUntil: h.cooldownUntil,
+  };
+};
+
+app.get('/api/providers', (req, res) => {
+  res.json({ providers: PROVIDERS.map(providerView), defaultChat: DEFAULT_CHAT, fallbacks: FALLBACK_ORDER });
+});
+
+app.patch('/api/providers/:id', (req, res) => {
+  const p = PROVIDER_BY_ID.get(req.params.id);
+  if (!p) return res.status(404).json({ error: 'Unknown provider' });
+  if (p.kind === 'disabled') return res.status(403).json({ error: 'This provider is locked and cannot be enabled' });
+  if (typeof req.body?.enabled !== 'boolean') return res.status(400).json({ error: 'enabled must be true or false' });
+  db.providerSettings[p.id] = { enabled: req.body.enabled };
+  persist();
+  res.json(providerView(p));
+});
+
+app.post('/api/providers/:id/test', async (req, res) => {
+  const p = PROVIDER_BY_ID.get(req.params.id);
+  if (!p) return res.status(404).json({ error: 'Unknown provider' });
+  if (p.kind === 'disabled') return res.status(403).json({ error: 'This provider is locked' });
+
+  const started = Date.now();
+  try {
+    const out = await callProvider(p, p.example, p.kind === 'media' ? TEST_TIMEOUT_MS : 20_000);
+    const text = extractText(out);
+    if (p.kind !== 'media' && !text) throw new Error('response had no readable text');
+    const latencyMs = Date.now() - started;
+    record(p.id, true, latencyMs);
+    const preview = text ?? (out.json ? JSON.stringify(out.json) : `[${out.bytes} bytes of ${out.type || 'binary'}]`);
+    res.json({ ok: true, latencyMs, contentType: out.type, bytes: out.bytes, preview: preview.slice(0, 400) });
+  } catch (err) {
+    const latencyMs = Date.now() - started;
+    record(p.id, false, latencyMs, err.message);
+    res.status(502).json({ ok: false, latencyMs, error: err.message });
+  }
+});
 
 // Projects
 app.get('/api/projects', (req, res) => {
@@ -202,6 +497,7 @@ app.post('/api/projects', (req, res) => {
     updatedAt: ts,
     files: { 'index.html': STARTER_HTML },
     lastLog: [],
+    versions: [],
     deployments: [],
   };
   db.projects.unshift(project);
@@ -226,6 +522,61 @@ app.delete('/api/projects/:id', requireProject, (req, res) => {
   res.status(204).end();
 });
 
+// Live event stream: sends a snapshot on connect, then live updates
+app.get('/api/projects/:id/events', requireProject, (req, res) => {
+  const p = req.project;
+  res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
+  res.flushHeaders();
+  res.write(`event: snapshot\ndata: ${JSON.stringify({ status: p.status, log: p.lastLog })}\n\n`);
+
+  if (!streams.has(p.id)) streams.set(p.id, new Set());
+  streams.get(p.id).add(res);
+  const beat = setInterval(() => res.write(': ping\n\n'), 25_000);
+
+  req.on('close', () => {
+    clearInterval(beat);
+    const set = streams.get(p.id);
+    if (set) {
+      set.delete(res);
+      if (!set.size) streams.delete(p.id);
+    }
+  });
+});
+
+// Build
+app.post('/api/projects/:id/generate', requireProject, (req, res) => {
+  const p = req.project;
+  if (running.has(p.id)) return res.status(409).json({ error: 'A build is already running for this project' });
+
+  const text = String(req.body?.prompt ?? '').trim();
+  if (!text) return res.status(400).json({ error: 'Prompt is required' });
+
+  const preferred = String(req.body?.provider || DEFAULT_CHAT);
+  const chosen = PROVIDER_BY_ID.get(preferred);
+  if (!chosen || chosen.kind !== 'chat') return res.status(400).json({ error: 'Choose a chat provider for builds' });
+
+  const isEdit = req.body?.mode === 'edit' && p.prompt;
+  const request = (isEdit ? `${p.prompt} | Change: ${text}` : text).slice(0, 1000);
+  p.prompt = request;
+
+  res.status(202).json({ started: true, request });
+  runBuild(p, request, preferred).catch((err) => console.error('build crashed:', err));
+});
+
+// Checkpoints
+app.post('/api/projects/:id/restore/:versionId', requireProject, (req, res) => {
+  const p = req.project;
+  const idx = p.versions.findIndex((v) => v.id === req.params.versionId);
+  if (idx === -1) return res.status(404).json({ error: 'Checkpoint not found' });
+  const [version] = p.versions.splice(idx, 1);
+  p.versions.unshift({ id: crypto.randomUUID(), at: now(), label: 'Before restore', html: p.files['index.html'] });
+  p.versions = p.versions.slice(0, MAX_VERSIONS);
+  p.files['index.html'] = version.html;
+  p.updatedAt = now();
+  persist();
+  res.json(p);
+});
+
 // Files
 app.put('/api/projects/:id/files/:name', requireProject, (req, res) => {
   const { name } = req.params;
@@ -239,50 +590,7 @@ app.put('/api/projects/:id/files/:name', requireProject, (req, res) => {
   res.json({ name, bytes: Buffer.byteLength(content) });
 });
 
-// Generation pipeline: Planner -> Frontend (AI) -> QA -> Integration
-app.post('/api/projects/:id/generate', requireProject, async (req, res) => {
-  const p = req.project;
-  const prompt = String(req.body?.prompt ?? '').trim().slice(0, 1000);
-  if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
-
-  const log = [];
-  const say = (agent, msg, level = 'info') => log.push({ at: now(), agent, level, msg });
-  const finish = (ok) => {
-    p.status = ok ? 'ready' : 'failed';
-    p.lastLog = log.slice(-200);
-    p.updatedAt = now();
-    persist();
-    res.json({ ok, project: p });
-  };
-
-  say('Planner', `Received request: "${prompt.slice(0, 160)}"`);
-  say('Frontend', `Requesting a single-file app from ${AI_BASE_URL}${AI_TEXT_PATH}`);
-
-  let reply;
-  try {
-    reply = await askAI(buildInstruction(prompt));
-  } catch (err) {
-    say('Frontend', `AI request failed: ${err.message}`, 'error');
-    return finish(false);
-  }
-
-  const html = extractHtml(reply);
-  if (!html) {
-    say('Frontend', 'Reply did not contain a complete HTML document', 'error');
-    return finish(false);
-  }
-  say('Frontend', `Received ${html.length} characters of HTML`);
-
-  const issues = staticChecks(html);
-  if (issues.length) issues.forEach((i) => say('QA', i, 'warn'));
-  else say('QA', 'Static checks passed');
-
-  p.files['index.html'] = html;
-  say('Integration', 'Saved index.html to the workspace');
-  finish(true);
-});
-
-// Preview (sandboxed in the UI; served with a CSP that allows inline app code)
+// Preview
 app.get('/preview/:id/:file?', (req, res) => {
   const p = findProject(req.params.id);
   if (!p) return res.status(404).send('Not found');
