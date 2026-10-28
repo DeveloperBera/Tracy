@@ -5,15 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>BeraForge AI - by Bera Tech</title>
 <style>
-:root{
-  --bg:#07080D;--panel:#0D1019;--panel-2:#121726;--border:#1E2535;--border-2:#2A3349;
-  --violet:#8B5CF6;--cyan:#22D3EE;--text:#EEF0F7;--muted:#8B93A7;
-  --ok:#34D399;--warn:#FBBF24;--err:#F87171;
-}
+:root{--bg:#07080D;--panel:#0D1019;--panel-2:#121726;--border:#1E2535;--border-2:#2A3349;--violet:#8B5CF6;--cyan:#22D3EE;--text:#EEF0F7;--muted:#8B93A7;--ok:#34D399;--warn:#FBBF24;--err:#F87171}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--text);font:14px/1.5 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-button,input,textarea{font:inherit;color:inherit}
+button,input,textarea,select{font:inherit;color:inherit}
 a{color:var(--cyan);text-decoration:none}
 .muted{color:var(--muted)}
 .gradtext{background:linear-gradient(90deg,var(--violet),var(--cyan));-webkit-background-clip:text;background-clip:text;color:transparent}
@@ -21,13 +17,15 @@ a{color:var(--cyan);text-decoration:none}
 .btn{background:transparent;border:1px solid var(--border-2);border-radius:9px;padding:7px 12px;cursor:pointer;white-space:nowrap}
 .btn:hover{border-color:var(--violet)}
 .btn:disabled{opacity:.45;cursor:not-allowed}
-.btn-grad{background:linear-gradient(90deg,var(--violet),#6D5BF0);border:0;color:#fff;font-weight:600;border-radius:9px;padding:9px 16px;cursor:pointer;box-shadow:0 0 24px rgba(139,92,246,.25)}
-.btn-grad:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
+select.btn{background:var(--panel-2)}
+.btn-grad{background:linear-gradient(90deg,var(--violet),#6D5BF0);border:0;color:#fff;font-weight:600;border-radius:9px;padding:9px 16px;cursor:pointer}
+.btn-grad:disabled{opacity:.5;cursor:not-allowed}
 .icon-btn{background:none;border:0;cursor:pointer;font-size:16px;padding:6px}
 .badge{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--border-2);color:var(--muted);white-space:nowrap}
-.badge.ready{color:var(--ok);border-color:rgba(52,211,153,.4)}
-.badge.failed{color:var(--err);border-color:rgba(248,113,113,.4)}
-.badge.building{color:var(--cyan);border-color:rgba(34,211,238,.4)}
+.badge.ready,.badge.verified{color:var(--ok);border-color:rgba(52,211,153,.4)}
+.badge.failed,.badge.error{color:var(--err);border-color:rgba(248,113,113,.4)}
+.badge.building,.badge.working{color:var(--cyan);border-color:rgba(34,211,238,.4)}
+.badge.untested{color:var(--warn);border-color:rgba(251,191,36,.35)}
 
 .app{display:grid;grid-template-columns:230px minmax(0,1fr) 300px;grid-template-rows:64px minmax(0,1fr);height:100vh}
 header{grid-column:1/-1;display:flex;align-items:center;gap:18px;padding:0 20px;border-bottom:1px solid var(--border)}
@@ -59,6 +57,7 @@ main{overflow:auto;padding:18px;display:flex;flex-direction:column;gap:16px;min-
 .hero p{margin:4px 0 14px;color:var(--muted)}
 .prompt{display:flex;gap:10px;align-items:flex-end;border:1px solid var(--border-2);border-radius:12px;padding:10px;background:var(--bg)}
 .prompt textarea{flex:1;background:none;border:0;outline:none;resize:none;min-height:44px;max-height:140px}
+.prompt-side{display:flex;flex-direction:column;gap:6px;align-items:stretch}
 .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .chip{background:var(--panel-2);border:1px solid var(--border-2);border-radius:999px;padding:4px 12px;font-size:12px;color:var(--muted);cursor:pointer}
 .chip:hover{color:var(--text);border-color:var(--cyan)}
@@ -72,10 +71,13 @@ main{overflow:auto;padding:18px;display:flex;flex-direction:column;gap:16px;min-
 .ws{display:flex;flex-direction:column;min-height:560px;flex:1;overflow:hidden}
 .ws-head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap}
 .ws-title{font-weight:600;font-size:15px;display:flex;gap:8px;align-items:center}
-.tabs{display:flex;align-items:center;gap:4px;padding:0 10px;border-bottom:1px solid var(--border)}
-.tab{background:none;border:0;padding:12px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent}
+.change{display:flex;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);align-items:center}
+.change input{flex:1;min-width:0;background:var(--bg);border:1px solid var(--border-2);border-radius:9px;padding:8px 10px;outline:none}
+.change input:focus{border-color:var(--violet)}
+.tabs{display:flex;align-items:center;gap:4px;padding:0 10px;border-bottom:1px solid var(--border);overflow-x:auto}
+.tab{background:none;border:0;padding:12px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
 .tab.on{color:var(--text);border-bottom-color:var(--violet)}
-.tabs .url{margin-left:auto;font-size:12px;padding:8px 0;max-width:50%;overflow:hidden;text-overflow:ellipsis}
+.tabs .url{margin-left:auto;font-size:12px;padding:8px 0;max-width:50%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .code{display:grid;grid-template-columns:200px minmax(0,1fr);flex:1;min-height:0}
 .explorer{border-right:1px solid var(--border);padding:10px;display:flex;flex-direction:column;gap:2px}
 .label{font-size:11px;letter-spacing:.1em;color:var(--muted);margin:4px 6px 8px}
@@ -93,6 +95,14 @@ main{overflow:auto;padding:18px;display:flex;flex-direction:column;gap:16px;min-
 .logs{margin:0;padding:14px;flex:1;overflow:auto;font:12.5px/1.7 ui-monospace,Menlo,Consolas,monospace;color:#B7BFD3;background:#05060A;white-space:pre-wrap}
 .lvl-error{color:var(--err)}
 .lvl-warn{color:var(--warn)}
+.lvl-info{color:#B7BFD3}
+.versions{display:flex;flex-direction:column;gap:8px;padding:12px}
+.ver{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:10px}
+.ptable{width:100%;border-collapse:collapse;font-size:13px}
+.ptable th,.ptable td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+.ptable th{color:var(--muted);font-weight:500;font-size:12px}
+.result{max-width:320px;word-break:break-word}
+.preview{font-size:12px;margin-top:4px;white-space:pre-wrap}
 
 .right{border-left:1px solid var(--border);padding:16px;display:flex;flex-direction:column;gap:18px;overflow:auto}
 .right h4{margin:0 0 8px;font-size:14px;display:flex;justify-content:space-between;align-items:center}
@@ -127,6 +137,7 @@ main{overflow:auto;padding:18px;display:flex;flex-direction:column;gap:16px;min-
   .explorer{flex-direction:row;overflow:auto;border-right:0;border-bottom:1px solid var(--border)}
   .label{display:none}
   .ws{min-height:480px}
+  .change{flex-wrap:wrap}
 }
 </style>
 </head>
@@ -140,24 +151,22 @@ main{overflow:auto;padding:18px;display:flex;flex-direction:column;gap:16px;min-
     <nav class="topnav">
       <a data-go="dashboard">Home</a>
       <a data-go="projects">Projects</a>
-      <a data-soon>Templates</a>
+      <a data-go="providers">API Providers</a>
       <a data-soon>Docs</a>
-      <a data-soon>Community</a>
     </nav>
     <div class="spacer"></div>
     <button class="btn upgrade" data-soon>✦ Upgrade</button>
-    <button class="icon-btn" data-soon title="Notifications">🔔</button>
     <div class="avatar">B</div>
   </header>
 
   <aside class="side">
     <button class="btn-grad new" data-action="new">+ New Project</button>
     <nav class="sidenav">
-      <a data-go="dashboard" class="active">Dashboard</a>
+      <a data-go="dashboard">Dashboard</a>
       <a data-go="projects">My Projects</a>
-      <a data-soon>AI Assistant</a>
-      <a data-soon>Templates</a>
+      <a data-go="providers">API Providers</a>
       <a data-go="deployments">Deployments</a>
+      <a data-soon>Usage and Billing</a>
       <a data-soon>Settings</a>
     </nav>
     <div class="card plan">
@@ -177,7 +186,7 @@ main{overflow:auto;padding:18px;display:flex;flex-direction:column;gap:16px;min-
 <div class="toasts" id="toasts"></div>
 
 <script>
-const AGENTS = ['Planner', 'Frontend', 'QA', 'Integration', 'Deployment'];
+const AGENTS = ['Planner', 'API', 'Frontend', 'QA', 'Integration', 'Deployment'];
 const PLAN_LIMIT = 10;
 const CHIPS = {
   'Full Stack App': 'Full-stack todo app with a clean UI, local state and a settings panel',
@@ -190,7 +199,12 @@ const CHIPS = {
 };
 const STATUS_LABEL = { draft: 'Draft', building: 'Building', ready: 'Ready', failed: 'Failed' };
 
-const S = { projects: [], current: null, file: 'index.html', tab: 'code', busy: null, dirty: false, device: 'desktop' };
+const S = {
+  projects: [], providers: [], tests: {}, current: null, view: 'home',
+  file: 'index.html', tab: 'code', busy: false, deploying: false, dirty: false,
+  device: 'desktop', provider: 'ai_gpt'
+};
+
 const $ = (sel) => document.querySelector(sel);
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fmtTime = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -202,6 +216,7 @@ const ago = (iso) => {
   return Math.floor(s / 86400) + 'd ago';
 };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const chatOptions = () => S.providers.filter((p) => p.kind === 'chat' && p.enabled);
 
 async function api(path, { method = 'GET', body } = {}) {
   const opts = { method, headers: {} };
@@ -237,18 +252,33 @@ async function refreshList() {
   $('#planBar').style.width = Math.min(100, (S.projects.length / PLAN_LIMIT) * 100) + '%';
 }
 
-async function goDashboard() {
+async function loadProviders() {
+  try {
+    S.providers = (await api('/api/providers')).providers;
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+  if (!chatOptions().some((p) => p.id === S.provider)) S.provider = chatOptions()[0]?.id || 'ai_gpt';
+}
+
+function goDashboard() {
   S.current = null;
-  await refreshList();
-  renderAll();
+  S.view = 'home';
+  refreshList().then(renderAll);
+}
+
+function showProviders() {
+  S.current = null;
+  S.view = 'providers';
+  loadProviders().then(renderAll);
 }
 
 async function openProject(id) {
   try {
-    const p = await api(`/api/projects/${encodeURIComponent(id)}`);
-    S.current = p;
+    S.current = await api(`/api/projects/${encodeURIComponent(id)}`);
+    S.view = 'home';
     S.tab = 'code';
-    S.file = p.files['index.html'] !== undefined ? 'index.html' : Object.keys(p.files)[0];
+    S.file = S.current.files['index.html'] !== undefined ? 'index.html' : Object.keys(S.current.files)[0];
     S.dirty = false;
     renderAll();
   } catch (e) {
@@ -256,42 +286,109 @@ async function openProject(id) {
   }
 }
 
-async function build(prompt) {
-  const text = (prompt || '').trim();
-  if (!text) return toast('Describe the app you want to build first.', 'warn');
+// Subscribes to a build's live events. Resolves with true/false when the build finishes.
+function watch(id) {
+  return new Promise((resolve) => {
+    const es = new EventSource(`/api/projects/${encodeURIComponent(id)}/events`);
+    const finish = (ok) => { es.close(); resolve(ok); };
+    const on = (type, fn) => es.addEventListener(type, (e) => fn(JSON.parse(e.data)));
+
+    on('snapshot', (d) => {
+      if (S.current?.id === id) { S.current.lastLog = d.log; S.current.status = d.status; renderLive(); }
+      if (d.status !== 'building') finish(d.status === 'ready');
+    });
+    on('log', (d) => {
+      if (S.current?.id === id) { S.current.lastLog.push(d); renderLive(); }
+    });
+    on('status', (d) => {
+      if (S.current?.id === id) { S.current.status = d.status; renderLive(); }
+    });
+    on('done', (d) => finish(d.ok));
+  });
+}
+
+async function startBuild(text, mode = 'new') {
+  if (!text) return toast('Describe the change or app first.', 'warn');
   if (S.busy) return;
-  S.busy = 'build';
+  S.busy = true;
   renderAll();
   try {
-    const created = await api('/api/projects', { method: 'POST', body: { prompt: text } });
-    S.current = created;
-    S.file = 'index.html';
-    S.tab = 'code';
+    if (mode === 'new' || !S.current) {
+      S.current = await api('/api/projects', { method: 'POST', body: { prompt: text } });
+      S.view = 'home';
+      S.file = 'index.html';
+      S.tab = 'code';
+    }
+    const id = S.current.id;
+    await api(`/api/projects/${encodeURIComponent(id)}/generate`, {
+      method: 'POST',
+      body: { prompt: text, provider: S.provider, mode }
+    });
     renderAll();
-    const result = await api(`/api/projects/${created.id}/generate`, { method: 'POST', body: { prompt: text } });
-    S.current = result.project;
-    toast(
-      result.ok ? 'Build finished. Check the Preview tab.' : 'Build failed. See the Logs tab for details.',
-      result.ok ? 'ok' : 'error'
-    );
+    const ok = await watch(id);
+    S.current = await api(`/api/projects/${encodeURIComponent(id)}`);
+    toast(ok ? 'Build saved. Open the Preview tab.' : 'Build failed. See the Logs tab.', ok ? 'ok' : 'error');
   } catch (e) {
     toast(e.message, 'error');
   } finally {
-    S.busy = null;
+    S.busy = false;
     await refreshList();
     renderAll();
   }
 }
 
+function applyChange() {
+  const text = $('#change')?.value.trim();
+  if (!text) return toast('Describe the change first.', 'warn');
+  startBuild(text, 'edit');
+}
+
+async function testProvider(id) {
+  S.tests[id] = { pending: true };
+  renderContent();
+  try {
+    S.tests[id] = await api(`/api/providers/${encodeURIComponent(id)}/test`, { method: 'POST' });
+  } catch (e) {
+    S.tests[id] = { ok: false, error: e.message };
+  }
+  await loadProviders();
+  renderContent();
+}
+
+async function toggleProvider(id) {
+  const p = S.providers.find((x) => x.id === id);
+  if (!p) return;
+  try {
+    await api(`/api/providers/${encodeURIComponent(id)}`, { method: 'PATCH', body: { enabled: !p.enabled } });
+    await loadProviders();
+    renderAll();
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+async function restore(versionId) {
+  try {
+    S.current = await api(`/api/projects/${encodeURIComponent(S.current.id)}/restore/${encodeURIComponent(versionId)}`, { method: 'POST' });
+    S.file = 'index.html';
+    S.dirty = false;
+    toast('Checkpoint restored', 'ok');
+    renderAll();
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
 async function deploy() {
   const p = S.current;
-  if (!p || S.busy) return;
-  S.busy = 'deploy';
+  if (!p || S.deploying) return;
+  S.deploying = true;
   renderAll();
   try {
     const d = await api(`/api/projects/${encodeURIComponent(p.id)}/deploy`, { method: 'POST' });
     p.deployments.unshift(d);
     toast('Deployment started on Vercel.', 'ok');
+    renderRight();
     for (let i = 0; i < 40 && !['READY', 'ERROR', 'CANCELED'].includes(d.state); i++) {
       await sleep(3000);
       Object.assign(d, await api(`/api/projects/${encodeURIComponent(p.id)}/deployments/${encodeURIComponent(d.id)}`));
@@ -299,12 +396,12 @@ async function deploy() {
     }
     if (d.state === 'READY') toast('Deployment is live.', 'ok');
     else if (d.state === 'ERROR' || d.state === 'CANCELED') toast(`Deployment ${d.state.toLowerCase()}.`, 'error');
-    else toast('Still deploying. Check the Deployments panel shortly.', 'warn');
+    else toast('Still deploying. Check the Logs tab shortly.', 'warn');
   } catch (e) {
     const hint = e.data?.setup ? ` ${e.data.setup}` : '';
     toast(e.message + hint, 'warn');
   } finally {
-    S.busy = null;
+    S.deploying = false;
     renderAll();
   }
 }
@@ -369,9 +466,27 @@ function renderAll() {
   renderRight();
 }
 
+// Updates only the live parts, so unsaved editor text is not lost while a build runs.
+function renderLive() {
+  renderRight();
+  const p = S.current;
+  if (!p) return;
+  const badge = $('#wsStatus');
+  if (badge) {
+    const st = S.busy ? 'building' : p.status;
+    badge.className = `badge ${st}`;
+    badge.textContent = STATUS_LABEL[st] || st;
+  }
+  const pre = $('#logsPre');
+  if (pre) {
+    pre.innerHTML = logLines(p);
+    pre.scrollTop = pre.scrollHeight;
+  }
+}
+
 function renderHero() {
   const el = $('#hero');
-  if (S.current) {
+  if (S.current || S.view === 'providers') {
     el.style.display = 'none';
     el.innerHTML = '';
     return;
@@ -380,19 +495,31 @@ function renderHero() {
   el.style.display = '';
   el.innerHTML = `
     <h1>✦ Build Your Next Application with <span class="gradtext">AI</span></h1>
-    <p>Describe your idea. The agent pipeline plans, generates, checks and deploys it.</p>
+    <p>Describe your idea. The agents plan, generate, check and save it.</p>
     <div class="prompt">
       <textarea id="prompt" rows="2" placeholder="Create a modern e-commerce website with authentication and payment integration…"></textarea>
-      <button class="btn-grad" data-action="build" ${S.busy ? 'disabled' : ''}>${S.busy === 'build' ? 'Building…' : '✦ Build'}</button>
+      <div class="prompt-side">
+        ${providerSelect()}
+        <button class="btn-grad" data-action="build" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Building…' : '✦ Build'}</button>
+      </div>
     </div>
     <div class="chips">${Object.keys(CHIPS).map((k) => `<span class="chip" data-chip="${esc(k)}">${esc(k)}</span>`).join('')}</div>`;
   $('#prompt').value = keep;
+}
+
+function providerSelect() {
+  return `<select class="btn" data-provider title="Chat model used for this build">${chatOptions().map((p) =>
+    `<option value="${esc(p.id)}" ${p.id === S.provider ? 'selected' : ''}>${esc(p.path)}</option>`).join('')}</select>`;
 }
 
 function renderContent() {
   const el = $('#content');
   if (S.current) {
     el.innerHTML = workspaceHtml(S.current);
+    return;
+  }
+  if (S.view === 'providers') {
+    el.innerHTML = providersHtml();
     return;
   }
   if (!S.projects.length) {
@@ -413,20 +540,62 @@ function renderContent() {
     </div>`;
 }
 
+function providersHtml() {
+  const rows = S.providers.map((p) => {
+    const t = S.tests[p.id];
+    const status = p.kind === 'disabled' ? 'locked' : p.verified ? 'verified' : 'untested';
+    const cooling = p.cooldownUntil > Date.now() ? ' <span class="muted">cooling down</span>' : '';
+    let result = '';
+    if (t?.pending) result = '<span class="muted">testing…</span>';
+    else if (t) result = t.ok
+      ? `<span style="color:var(--ok)">${esc(t.contentType || '')} · ${t.latencyMs} ms</span><div class="muted preview">${esc(t.preview || '')}</div>`
+      : `<span style="color:var(--err)">${esc(t.error)}</span>`;
+    else if (p.lastError) result = `<span class="muted">last error: ${esc(p.lastError)}</span>`;
+    return `<tr>
+      <td><b>${esc(p.id)}</b><div class="muted" style="font-size:12px">${esc(p.path)}</div>${p.note ? `<div class="muted" style="font-size:12px">${esc(p.note)}</div>` : ''}</td>
+      <td>${esc(p.kind)}</td>
+      <td><span class="badge ${status}">${status}</span>${cooling}</td>
+      <td class="muted">${p.lastLatencyMs != null ? p.lastLatencyMs + ' ms' : '—'}</td>
+      <td>${p.kind === 'disabled'
+        ? '<span class="muted">locked</span>'
+        : `<button class="btn" data-toggle="${esc(p.id)}">${p.enabled ? 'Disable' : 'Enable'}</button>`}</td>
+      <td><button class="btn" data-test="${esc(p.id)}" ${p.kind === 'disabled' || t?.pending ? 'disabled' : ''}>Test</button></td>
+      <td class="result">${result}</td>
+    </tr>`;
+  }).join('');
+  return `
+    <h3 style="margin:0">API Providers</h3>
+    <p class="muted" style="margin:0">Chat providers build apps. Research and media endpoints can be tested here but are never used for code generation. Builds fall back to the next enabled chat provider if one fails, and the Logs tab shows which one answered.</p>
+    <div class="card" style="overflow:auto">
+      <table class="ptable">
+        <thead><tr><th>Endpoint</th><th>Kind</th><th>Status</th><th>Latency</th><th></th><th></th><th>Last test</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
 function workspaceHtml(p) {
-  const status = S.busy === 'build' ? 'building' : p.status;
+  const status = S.busy ? 'building' : p.status;
   const dep = p.deployments[0];
-  const tabs = [['code', 'Code'], ['preview', 'Preview'], ['logs', 'Logs']];
-  const body = S.tab === 'code' ? codeHtml(p) : S.tab === 'preview' ? previewHtml(p) : logsHtml(p);
+  const tabs = [['code', 'Code'], ['preview', 'Preview'], ['logs', 'Logs'], ['versions', 'Versions']];
+  const body = S.tab === 'code' ? codeHtml(p)
+    : S.tab === 'preview' ? previewHtml(p)
+    : S.tab === 'logs' ? `<pre class="logs" id="logsPre">${logLines(p)}</pre>`
+    : versionsHtml(p);
   return `
     <section class="card ws">
       <div class="ws-head">
         <button class="btn" data-action="back">← Dashboard</button>
-        <div class="ws-title">▣ ${esc(p.name)} <span class="badge ${esc(status)}">${esc(STATUS_LABEL[status] || status)}</span></div>
+        <div class="ws-title">▣ ${esc(p.name)} <span id="wsStatus" class="badge ${esc(status)}">${esc(STATUS_LABEL[status] || status)}</span></div>
         <div class="spacer"></div>
         <button class="btn" data-action="rename">Rename</button>
         <button class="btn" data-action="delete">Delete</button>
-        <button class="btn-grad" data-action="deploy" ${S.busy ? 'disabled' : ''}>${S.busy === 'deploy' ? 'Deploying…' : 'Deploy'}</button>
+        <button class="btn-grad" data-action="deploy" ${S.busy || S.deploying ? 'disabled' : ''}>${S.deploying ? 'Deploying…' : 'Deploy'}</button>
+      </div>
+      <div class="change">
+        <input id="change" placeholder="Ask for a change, e.g. add a dark mode toggle" ${S.busy ? 'disabled' : ''} />
+        ${providerSelect()}
+        <button class="btn-grad" data-action="change" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Working…' : 'Apply'}</button>
       </div>
       <div class="tabs">
         ${tabs.map(([k, l]) => `<button class="tab ${S.tab === k ? 'on' : ''}" data-tab="${k}">${l}</button>`).join('')}
@@ -445,7 +614,7 @@ function codeHtml(p) {
       </div>
       <div class="editor">
         <div class="editor-bar">
-          <span>${esc(S.file)} <span id="dirty" style="color:var(--warn)">${S.dirty ? '● unsaved' : ''}</span></span>
+          <span>${esc(S.file)} <span style="color:var(--warn)">${S.dirty ? '● unsaved' : ''}</span></span>
           <button class="btn" data-action="save">Save (Ctrl+S)</button>
         </div>
         <textarea id="editor" spellcheck="false">${esc(p.files[S.file] ?? '')}</textarea>
@@ -470,33 +639,43 @@ function previewHtml(p) {
     </div>`;
 }
 
-function logsHtml(p) {
-  const lines = (p.lastLog || []).map((l) =>
-    `<span class="lvl-${esc(l.level)}">[${fmtTime(l.at)}] ${esc(l.agent)} ${esc(l.level.toUpperCase())}: ${esc(l.msg)}</span>`
-  );
-  (p.deployments || []).slice().reverse().forEach((d) =>
-    lines.push(`<span>[${fmtTime(d.createdAt)}] Deployment ${esc(d.id)} → ${esc(d.state)} ${esc(d.url || '')}</span>`)
-  );
-  const text = lines.length ? lines.join('\n') : 'No build output yet. Describe an app and press Build.';
-  return `<pre class="logs">${text}</pre>`;
+function logLines(p) {
+  const lines = (p?.lastLog || []).map((l) =>
+    `<span class="lvl-${esc(l.level)}">[${fmtTime(l.at)}] ${esc(l.agent)} ${esc(l.level.toUpperCase())}: ${esc(l.msg)}</span>`);
+  (p?.deployments || []).slice().reverse().forEach((d) =>
+    lines.push(`<span>[${fmtTime(d.createdAt)}] Deployment ${esc(d.id)} → ${esc(d.state)} ${esc(d.url || '')}</span>`));
+  return lines.length ? lines.join('\n') : 'No build output yet. Describe an app and press Build.';
+}
+
+function versionsHtml(p) {
+  if (!p.versions.length) {
+    return '<div class="empty">No checkpoints yet. Each successful build or change saves the previous version here.</div>';
+  }
+  return `<div class="versions">${p.versions.map((v) => `
+    <div class="ver">
+      <div><b>${ago(v.at)}</b> <span class="muted">${esc(v.label.slice(0, 140))}</span></div>
+      <button class="btn" data-restore="${esc(v.id)}">Restore</button>
+    </div>`).join('')}</div>`;
 }
 
 function renderRight() {
   const p = S.current;
   const log = p?.lastLog || [];
-  const agentState = (name) => {
-    if (S.busy === 'build' && ['Planner', 'Frontend', 'QA', 'Integration'].includes(name)) return 'working';
-    if (S.busy === 'deploy' && name === 'Deployment') return 'working';
+  const lastAgent = log.length ? log[log.length - 1].agent : null;
+
+  const state = (name) => {
     if (name === 'Deployment') {
+      if (S.deploying) return 'working';
       const d = p?.deployments?.[0];
       if (!d) return 'idle';
       if (d.state === 'READY') return 'done';
       if (d.state === 'ERROR' || d.state === 'CANCELED') return 'error';
       return 'working';
     }
-    const entries = log.filter((e) => e.agent === name);
-    if (!entries.length) return 'idle';
-    return entries.some((e) => e.level === 'error') ? 'error' : 'done';
+    const mine = log.filter((e) => e.agent === name);
+    if (!mine.length) return 'idle';
+    if (S.busy && name === lastAgent) return 'working';
+    return mine.some((e) => e.level === 'error') ? 'error' : 'done';
   };
 
   const activity = log.slice(-8).reverse()
@@ -517,7 +696,7 @@ function renderRight() {
     <div>
       <h4>Live Agents <span style="color:var(--cyan);font-size:12px">${S.busy ? '● working' : ''}</span></h4>
       ${AGENTS.map((n) => {
-        const st = agentState(n);
+        const st = state(n);
         return `<div class="row"><span class="dot ${st}"></span><span>${n}</span><span class="muted" style="margin-left:auto;font-size:12px">${st}</span></div>`;
       }).join('')}
     </div>
@@ -527,17 +706,19 @@ function renderRight() {
 
 /* ---------- Events ---------- */
 document.addEventListener('click', (e) => {
-  const el = e.target.closest('[data-action],[data-open],[data-file],[data-tab],[data-device],[data-go],[data-chip],[data-soon]');
+  const el = e.target.closest('[data-action],[data-open],[data-file],[data-tab],[data-device],[data-go],[data-chip],[data-soon],[data-test],[data-toggle],[data-restore]');
   if (!el) return;
   const d = el.dataset;
 
   if ('soon' in d) return toast('Not part of this build yet.', 'info');
   if ('go' in d) {
+    if (d.go === 'providers') return showProviders();
     if (d.go === 'deployments') {
       if (S.current) { S.tab = 'logs'; renderAll(); }
       else toast('Open a project to see its deployments.', 'info');
       return;
     }
+    if (d.go === 'projects') return goDashboard();
     return goDashboard();
   }
   if ('chip' in d) {
@@ -549,14 +730,19 @@ document.addEventListener('click', (e) => {
   if ('file' in d) return switchFile(d.file);
   if ('tab' in d) { S.tab = d.tab; return renderAll(); }
   if ('device' in d) { S.device = d.device; return renderContent(); }
+  if ('test' in d) return testProvider(d.test);
+  if ('toggle' in d) return toggleProvider(d.toggle);
+  if ('restore' in d) return restore(d.restore);
 
   switch (d.action) {
     case 'new':
       S.current = null;
+      S.view = 'home';
       renderAll();
       $('#prompt')?.focus();
       break;
-    case 'build': return build($('#prompt')?.value);
+    case 'build': return startBuild($('#prompt')?.value.trim(), 'new');
+    case 'change': return applyChange();
     case 'back': return goDashboard();
     case 'save': return saveFile();
     case 'refresh': return renderContent();
@@ -566,10 +752,14 @@ document.addEventListener('click', (e) => {
   }
 });
 
+document.addEventListener('change', (e) => {
+  if (e.target.matches('[data-provider]')) S.provider = e.target.value;
+});
+
 document.addEventListener('input', (e) => {
   if (e.target.id === 'editor') {
     S.dirty = true;
-    const tag = $('#dirty');
+    const tag = e.target.closest('.editor')?.querySelector('.editor-bar span span');
     if (tag) tag.textContent = '● unsaved';
   }
 });
@@ -579,15 +769,19 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault();
     saveFile();
   }
-  if (e.target.id === 'prompt' && e.key === 'Enter' && !e.shiftKey) {
+  if (e.key === 'Enter' && !e.shiftKey && e.target.id === 'prompt') {
     e.preventDefault();
-    build($('#prompt').value);
+    startBuild($('#prompt').value.trim(), 'new');
+  }
+  if (e.key === 'Enter' && !e.shiftKey && e.target.id === 'change') {
+    e.preventDefault();
+    applyChange();
   }
 });
 
 /* ---------- Init ---------- */
 (async function init() {
-  await refreshList();
+  await Promise.all([refreshList(), loadProviders()]);
   renderAll();
 })();
 </script>
