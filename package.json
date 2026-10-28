@@ -1,18 +1,19 @@
 {
   "name": "beraforge-ai",
-  "version": "0.2.0",
-  "description": "BeraForge AI by Bera Tech - prompt-to-app builder prototype",
+  "version": "1.0.0",
+  "description": "BeraForge AI by Bera Tech - Phase 1: agents, files and Neon storage",
   "main": "server.js",
   "private": true,
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js"
+    "start": "node --env-file=.env server.js",
+    "dev": "node --watch --env-file=.env server.js"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20.6"
   },
   "dependencies": {
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "pg": "^8.13.1"
   },
   "license": "UNLICENSED"
 }
