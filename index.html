@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BeraForge AI - by Bera Tech</title>
+<style>
+:root{--bg:#07080D;--panel:#0D1019;--panel-2:#121726;--border:#1E2535;--border-2:#2A3349;--violet:#8B5CF6;--cyan:#22D3EE;--text:#EEF0F7;--muted:#8B93A7;--ok:#34D399;--warn:#FBBF24;--err:#F87171}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font:14px/1.5 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button,input,textarea,select{font:inherit;color:inherit}
+a{color:var(--cyan);text-decoration:none}
+.muted{color:var(--muted)}
+.gradtext{background:linear-gradient(90deg,var(--violet),var(--cyan));-webkit-background-clip:text;background-clip:text;color:transparent}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:14px}
+.btn{background:transparent;border:1px solid var(--border-2);border-radius:9px;padding:7px 12px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--violet)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-grad{background:linear-gradient(90deg,var(--violet),#6D5BF0);border:0;color:#fff;font-weight:600;border-radius:9px;padding:9px 16px;cursor:pointer}
+.btn-grad:disabled{opacity:.5;cursor:not-allowed}
+.badge{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--border-2);color:var(--muted);white-space:nowrap}
+.badge.ready{color:var(--ok);border-color:rgba(52,211,153,.4)}
+.badge.failed{color:var(--err);border-color:rgba(248,113,113,.4)}
+.badge.working{color:var(--cyan);border-color:rgba(34,211,238,.4)}
+.spacer{flex:1}
+.row-between{display:flex;justify-content:space-between;align-items:center;gap:8px}
+
+.app{display:grid;grid-template-columns:230px minmax(0,1fr) 300px;grid-template-rows:64px minmax(0,1fr);height:100vh}
+header{grid-column:1/-1;display:flex;align-items:center;gap:18px;padding:0 20px;border-bottom:1px solid var(--border)}
+.brand{display:flex;align-items:center;gap:10px}
+.logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--violet),var(--cyan));display:grid;place-items:center;font-weight:800;color:#fff}
+.brand .name{font-size:19px;font-weight:700;line-height:1}
+.brand small{display:block;font-size:10px;letter-spacing:.12em;color:var(--muted);margin-top:3px}
+.topnav{display:flex;gap:20px;margin-left:24px}
+.topnav a{color:var(--muted);cursor:pointer}
+.topnav a:hover,.topnav a.on{color:var(--text)}
+.upgrade{border-color:var(--violet);color:#C4B5FD}
+.avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--violet),var(--cyan));display:grid;place-items:center;font-weight:700}
+
+.side{border-right:1px solid var(--border);padding:16px;display:flex;flex-direction:column;gap:14px;overflow:auto}
+.new{width:100%;padding:12px;font-size:15px}
+.sidenav{display:flex;flex-direction:column;gap:2px}
+.sidenav a{color:var(--muted);padding:10px 12px;border-radius:9px;cursor:pointer}
+.sidenav a:hover{color:var(--text);background:var(--panel-2)}
+.sidenav a.on{color:var(--text);background:var(--panel-2);box-shadow:inset 2px 0 0 var(--violet)}
+.recent{display:flex;flex-direction:column;gap:2px}
+.recent button{background:none;border:0;text-align:left;padding:7px 10px;border-radius:8px;color:var(--muted);cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.recent button:hover,.recent button.on{color:var(--text);background:var(--panel-2)}
+.plan{padding:14px}
+.meter{display:flex;justify-content:space-between;font-size:13px;margin-top:12px}
+.bar{height:6px;border-radius:6px;background:var(--panel-2);overflow:hidden;margin-top:7px}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--violet),var(--cyan))}
+.promo{padding:14px;border-color:rgba(139,92,246,.35)}
+.promo h4{margin:0 0 6px;font-size:15px}
+.promo p{margin:0 0 10px;color:var(--muted);font-size:13px}
+.sidebrand{margin-top:auto}
+.sidebrand small{display:block;color:var(--muted);font-size:11px;margin-top:6px}
+
+.main{overflow:auto;padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.hero{padding:22px;background:radial-gradient(900px 260px at 85% -30%,rgba(139,92,246,.22),transparent),var(--panel)}
+.hero h1{margin:0;font-size:22px;font-weight:700}
+.hero p{margin:4px 0 14px;color:var(--muted)}
+.prompt{display:flex;gap:10px;align-items:flex-end;border:1px solid var(--border-2);border-radius:12px;padding:10px;background:var(--bg)}
+.prompt textarea,.composer textarea{flex:1;background:none;border:0;outline:none;resize:none;min-height:44px;max-height:140px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.chip{background:var(--panel-2);border:1px solid var(--border-2);border-radius:999px;padding:4px 12px;font-size:12px;color:var(--muted);cursor:pointer}
+.chip:hover{color:var(--text);border-color:var(--cyan)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.pcard{padding:16px;cursor:pointer}
+.pcard:hover{border-color:var(--violet)}
+.pcard h3{margin:0 0 8px;font-size:15px}
+.empty{padding:28px;text-align:center;color:var(--muted)}
+
+.ws{display:flex;flex-direction:column;min-height:640px;overflow:hidden;flex:1}
+.ws-head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.ws-title{font-weight:600;font-size:15px;display:flex;gap:8px;align-items:center}
+.tabs{display:flex;gap:4px;padding:0 10px;border-bottom:1px solid var(--border);overflow-x:auto}
+.tab{background:none;border:0;padding:12px 10px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+.tab.on{color:var(--text);border-bottom-color:var(--violet)}
+
+.msgs{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px;min-height:460px;max-height:62vh}
+.msg{border:1px solid var(--border);border-radius:12px;padding:10px 12px;background:var(--panel-2);max-width:92%}
+.msg.you{align-self:flex-end;background:rgba(139,92,246,.1);border-color:rgba(139,92,246,.35)}
+.msg.qa{border-color:rgba(251,191,36,.25)}
+.msg .who{font-size:11px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px}
+.msg .txt{white-space:pre-wrap;word-break:break-word;font-size:13.5px}
+.composer{display:flex;gap:8px;padding:12px;border-top:1px solid var(--border);align-items:flex-end}
+.composer textarea{border:1px solid var(--border-2);border-radius:10px;padding:9px 10px;background:var(--bg)}
+.composer textarea:focus,.prompt:focus-within{border-color:var(--violet)}
+
+.split{display:grid;grid-template-columns:190px minmax(0,1fr);flex:1;min-height:460px}
+.explorer{border-right:1px solid var(--border);padding:10px;display:flex;flex-direction:column;gap:2px;overflow:auto}
+.label{font-size:11px;letter-spacing:.1em;color:var(--muted);margin:4px 6px 8px}
+.file{background:none;border:0;text-align:left;padding:7px 8px;border-radius:7px;color:var(--muted);cursor:pointer;font-size:13px;word-break:break-all}
+.file.on,.file:hover{background:var(--panel-2);color:var(--text)}
+.editor{display:flex;flex-direction:column;min-width:0}
+.bar-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border);color:var(--muted);font-size:12px}
+#editor{flex:1;min-height:420px;background:#090B12;border:0;outline:none;resize:none;padding:14px;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#D6DAE8;tab-size:2;white-space:pre}
+.preview-bar{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.seg{display:flex;border:1px solid var(--border-2);border-radius:9px;overflow:hidden}
+.seg button{background:none;border:0;padding:6px 12px;color:var(--muted);cursor:pointer}
+.seg button.on{background:var(--panel-2);color:var(--text)}
+.frame-wrap{flex:1;display:flex;justify-content:center;background:#05060A;padding:12px;min-height:460px;overflow:auto}
+#frame{background:#fff;border:0;border-radius:8px;height:100%;min-height:440px;max-width:100%;transition:width .2s}
+.note{padding:10px 14px;font-size:12px;border-top:1px solid var(--border)}
+.versions{display:flex;flex-direction:column;gap:8px;padding:14px}
+.ver{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:10px}
+
+.right{border-left:1px solid var(--border);padding:16px;display:flex;flex-direction:column;gap:14px;overflow:auto}
+.panel{padding:14px}
+.panel h4{margin:0 0 10px;font-size:14px;display:flex;justify-content:space-between;align-items:center}
+.arow{display:flex;align-items:center;gap:10px;padding:6px 0;font-size:13px}
+.arow .st{margin-left:auto;font-size:12px;color:var(--muted)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex:none}
+.dot.working{background:var(--cyan);box-shadow:0 0 8px var(--cyan);animation:pulse 1.2s infinite}
+.dot.done{background:var(--ok)}
+@keyframes pulse{50%{opacity:.35}}
+.act{padding:8px 0;border-bottom:1px solid var(--border);font-size:12.5px}
+.act b{display:block;font-weight:600}
+.act span{color:var(--muted);word-break:break-word}
+.logbox{margin:0;background:#05060A;border:1px solid var(--border);border-radius:10px;padding:10px;font:11.5px/1.6 ui-monospace,Menlo,Consolas,monospace;color:#B7BFD3;max-height:240px;overflow:auto;white-space:pre-wrap;word-break:break-word}
+
+.toasts{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:8px;z-index:50}
+.toast{background:var(--panel-2);border:1px solid var(--border-2);border-left:3px solid var(--cyan);padding:10px 14px;border-radius:10px;max-width:380px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.toast.ok{border-left-color:var(--ok)}
+.toast.error{border-left-color:var(--err)}
+.toast.warn{border-left-color:var(--warn)}
+
+@media (max-width:1280px){.app{grid-template-columns:210px minmax(0,1fr) 260px}}
+@media (max-width:980px){.app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}.side,.right,.topnav,.upgrade{display:none}header{padding:0 12px;gap:10px}.split{grid-template-columns:1fr}.explorer{flex-direction:row;overflow:auto;border-right:0;border-bottom:1px solid var(--border)}.label{display:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <div class="logo">B</div>
+      <div><div class="name"><span class="gradtext">BeraForge</span> AI</div><small>BY BERA TECH</small></div>
+    </div>
+    <nav class="topnav">
+      <a data-go="dashboard">Home</a>
+      <a data-go="projects">Projects</a>
+      <a data-soon>Templates</a>
+      <a data-soon>Docs</a>
+    </nav>
+    <div class="spacer"></div>
+    <button class="btn upgrade" data-soon>✦ Upgrade</button>
+    <div class="avatar">B</div>
+  </header>
+
+  <aside class="side">
+    <button class="btn-grad new" data-action="new">+ New Project</button>
+    <nav class="sidenav">
+      <a data-go="dashboard">▦ Dashboard</a>
+      <a data-go="projects">▤ My Projects</a>
+      <a data-soon>✧ AI Assistant</a>
+      <a data-soon>⚙ Settings</a>
+    </nav>
+    <div class="label" style="margin:4px 0 0">RECENT</div>
+    <div class="recent" id="recent"></div>
+    <div class="card plan" id="planBox"></div>
+    <div class="card promo">
+      <h4>Build faster with <span class="gradtext">BeraForge Pro</span></h4>
+      <p>More AI power, higher limits, priority support.</p>
+      <button class="btn" data-soon style="width:100%;border-color:var(--violet);color:#C4B5FD">View Plans</button>
+    </div>
+    <div class="sidebrand">
+      <div><span class="gradtext" style="font-weight:700">BeraForge AI</span></div>
+      <small>BY BERA TECH</small>
+      <small>Ideas → Code → Live</small>
+    </div>
+  </aside>
+
+  <main class="main">
+    <section class="card hero" id="hero"></section>
+    <section id="content" style="display:flex;flex-direction:column;gap:12px;min-height:0"></section>
+  </main>
+
+  <aside class="right" id="right"></aside>
+</div>
+<div class="toasts" id="toasts"></div>
+
+<script>
+const PLAN_LIMIT = 10;
+const CHIPS = {
+  'Full Stack App': 'A todo app with a clean UI and a settings panel',
+  'Website': 'A one-page marketing site for a software startup with a hero, features and a contact form',
+  'API': 'A REST API explorer page where I can send requests to a URL and view formatted JSON',
+  'Mobile App': 'A mobile-first habit tracker with daily check-ins and streak counters',
+  'Dashboard': 'An analytics dashboard with KPI cards, a chart and a recent activity table',
+  'Blog': 'A minimal blog with a post list, a reading view and a search box',
+  'E-commerce': 'An e-commerce storefront with a product grid, cart drawer and checkout summary'
+};
+const AGENTS = ['Orchestrator', 'Builder', 'QA'];
+const LABEL = { draft: 'Draft', working: 'Working', ready: 'Ready', failed: 'Failed' };
+
+const S = {
+  projects: [], current: null, messages: [], status: 'draft', busy: false,
+  view: 'dashboard', tab: 'chat', file: 'public/index.html', dirty: false,
+  device: 'desktop', es: null
+};
+
+const $ = (sel) => document.querySelector(sel);
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtTime = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const ago = (iso) => {
+  const s = (Date.now() - new Date(iso)) / 1000;
+  if (s < 60) return 'just now';
+  if (s < 3600) return Math.floor(s / 60) + 'm ago';
+  if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+  return Math.floor(s / 86400) + 'd ago';
+};
+
+async function api(path, { method = 'GET', body } = {}) {
+  const opts = { method, headers: {} };
+  if (body !== undefined) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  const res = await fetch(path, opts);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+  return data;
+}
+
+function toast(msg, kind = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast ${kind}`;
+  el.textContent = msg;
+  $('#toasts').appendChild(el);
+  setTimeout(() => el.remove(), 4500);
+}
+
+async function refreshList() {
+  try { S.projects = (await api('/api/projects')).projects; }
+  catch (e) { toast(e.message, 'error'); }
+  renderSide();
+}
+
+/* ---------- Live stream ---------- */
+function closeStream() {
+  if (S.es) { S.es.close(); S.es = null; }
+}
+
+function connectStream(id) {
+  closeStream();
+  const es = new EventSource(`/api/projects/${encodeURIComponent(id)}/events`);
+  S.es = es;
+  const mine = () => S.current && S.current.id === id;
+
+  es.addEventListener('snapshot', (e) => {
+    if (!mine()) return;
+    const d = JSON.parse(e.data);
+    S.messages = d.messages;
+    S.status = d.status;
+    S.busy = d.status === 'working';
+    updateLive();
+  });
+  es.addEventListener('message', (e) => {
+    if (!mine()) return;
+    const m = JSON.parse(e.data);
+    if (!S.messages.some((x) => x.id === m.id)) S.messages.push(m);
+    updateLive();
+  });
+  es.addEventListener('status', (e) => {
+    if (!mine()) return;
+    const wasBusy = S.busy;
+    S.status = JSON.parse(e.data).status;
+    S.busy = S.status === 'working';
+    updateLive();
+    if (wasBusy && !S.busy) reloadProject();
+  });
+}
+
+async function reloadProject() {
+  if (!S.current) return;
+  try {
+    const d = await api(`/api/projects/${encodeURIComponent(S.current.id)}`);
+    S.current = d;
+    if (!d.files[S.file]) S.file = Object.keys(d.files)[0] || 'public/index.html';
+    if ((S.tab === 'code' && !S.dirty) || S.tab === 'preview' || S.tab === 'versions') renderCenter();
+    renderSide();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+/* ---------- Navigation ---------- */
+async function openProject(id) {
+  try {
+    S.current = await api(`/api/projects/${encodeURIComponent(id)}`);
+    S.view = 'project';
+    S.tab = 'chat';
+    S.dirty = false;
+    S.file = S.current.files['public/index.html'] !== undefined ? 'public/index.html' : (Object.keys(S.current.files)[0] || 'public/index.html');
+    S.messages = [];
+    S.status = S.current.status;
+    S.busy = S.status === 'working';
+    connectStream(id);
+    renderAll();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function goHome() {
+  closeStream();
+  S.current = null;
+  S.messages = [];
+  S.view = 'dashboard';
+  renderAll();
+}
+
+function goProjects() {
+  closeStream();
+  S.current = null;
+  S.messages = [];
+  S.view = 'projects';
+  refreshList().then(renderAll);
+}
+
+/* ---------- Actions ---------- */
+async function startProject(text) {
+  text = (text || '').trim();
+  if (!text) return toast('Describe the app first.', 'warn');
+  try {
+    const p = await api('/api/projects', { method: 'POST', body: { name: text.slice(0, 40) } });
+    await refreshList();
+    await openProject(p.id);
+    await sendMessage(text);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function sendMessage(text) {
+  text = (text ?? $('#composerText')?.value ?? '').trim();
+  if (!text) return toast('Type a message first.', 'warn');
+  if (!S.current) return;
+  if (S.busy) return toast('The Builder is still working.', 'warn');
+  try {
+    await api(`/api/projects/${encodeURIComponent(S.current.id)}/messages`, { method: 'POST', body: { text } });
+    S.busy = true;
+    const box = $('#composerText');
+    if (box) box.value = '';
+    updateLive();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function saveFile() {
+  if (!S.current) return;
+  if (S.busy) return toast('Wait for the Builder to finish first.', 'warn');
+  const content = $('#editor')?.value ?? '';
+  try {
+    await api(`/api/projects/${encodeURIComponent(S.current.id)}/file`, { method: 'PUT', body: { path: S.file, content } });
+    S.current.files[S.file] = content;
+    S.dirty = false;
+    toast(`Saved ${S.file}`, 'ok');
+    renderCenter();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function switchFile(name) {
+  if (S.dirty && !confirm('Discard unsaved changes?')) return;
+  S.file = name;
+  S.dirty = false;
+  renderCenter();
+}
+
+async function restore(versionId) {
+  if (S.busy) return toast('Wait for the Builder to finish first.', 'warn');
+  try {
+    S.current = await api(`/api/projects/${encodeURIComponent(S.current.id)}/restore/${encodeURIComponent(versionId)}`, { method: 'POST' });
+    S.dirty = false;
+    toast('Checkpoint restored. The previous files are saved as a checkpoint too.', 'ok');
+    renderAll();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function renameProject() {
+  const name = window.prompt('Project name', S.current.name);
+  if (!name || !name.trim()) return;
+  try {
+    S.current = await api(`/api/projects/${encodeURIComponent(S.current.id)}`, { method: 'PATCH', body: { name: name.trim() } });
+    await refreshList();
+    renderAll();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deleteProject() {
+  if (S.busy) return toast('Wait for the Builder to finish first.', 'warn');
+  if (!confirm(`Delete "${S.current.name}"? This cannot be undone.`)) return;
+  try {
+    await api(`/api/projects/${encodeURIComponent(S.current.id)}`, { method: 'DELETE' });
+    toast('Project deleted', 'ok');
+    goHome();
+    await refreshList();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deploy() {
+  try { await api(`/api/projects/${encodeURIComponent(S.current.id)}/deploy`, { method: 'POST' }); }
+  catch (e) { toast(e.message, 'warn'); }
+}
+
+/* ---------- Rendering ---------- */
+function renderAll() {
+  renderSide();
+  renderHero();
+  renderCenter();
+  renderRight();
+  document.querySelectorAll('.topnav a[data-go], .sidenav a[data-go]').forEach((a) => {
+    const on = (a.dataset.go === 'dashboard' && S.view === 'dashboard') || (a.dataset.go === 'projects' && S.view === 'projects');
+    a.classList.toggle('on', on);
+  });
+}
+
+// Updates only the live parts, so text typed in the composer or editor survives while the Builder works.
+function updateLive() {
+  const st = S.busy ? 'working' : S.status;
+  const badge = $('#wsStatus');
+  if (badge) { badge.className = `badge ${st}`; badge.textContent = LABEL[st] || st; }
+  const msgs = $('#msgs');
+  if (msgs) { msgs.innerHTML = messagesHtml(); msgs.scrollTop = msgs.scrollHeight; }
+  const box = $('#composerText');
+  if (box) box.disabled = S.busy;
+  const send = $('#sendBtn');
+  if (send) { send.disabled = S.busy; send.textContent = S.busy ? 'Working…' : 'Send'; }
+  renderRight();
+}
+
+function renderSide() {
+  $('#recent').innerHTML = S.projects.slice(0, 8).map((p) =>
+    `<button class="${S.current && S.current.id === p.id ? 'on' : ''}" data-open="${esc(p.id)}">${esc(p.name)}</button>`
+  ).join('') || '<span class="muted" style="font-size:12px">No projects yet</span>';
+  const pct = Math.min(100, (S.projects.length / PLAN_LIMIT) * 100);
+  $('#planBox').innerHTML = `
+    <div class="row-between"><b>Free Plan</b><span class="badge" data-soon>Upgrade</span></div>
+    <div class="meter"><span class="muted">Projects</span><span>${S.projects.length} / ${PLAN_LIMIT}</span></div>
+    <div class="bar"><i style="width:${pct}%"></i></div>`;
+}
+
+function renderHero() {
+  const el = $('#hero');
+  if (S.view !== 'dashboard' || S.current) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  el.style.display = '';
+  el.innerHTML = `
+    <h1>✦ Build Your Next Application with <span class="gradtext">AI</span></h1>
+    <p>Describe your idea. The Builder writes the files one at a time, checks each one and keeps the conversation.</p>
+    <div class="prompt">
+      <textarea id="heroText" rows="2" placeholder="Create a modern e-commerce website with a product list and a checkout form…"></textarea>
+      <button class="btn-grad" data-action="start">✦ Build</button>
+    </div>
+    <div class="chips">${Object.keys(CHIPS).map((k) => `<span class="chip" data-chip="${esc(k)}">${esc(k)}</span>`).join('')}</div>`;
+}
+
+function renderCenter() {
+  const el = $('#content');
+  if (S.current) { el.innerHTML = workspaceHtml(); return; }
+  if (S.view === 'projects' || S.view === 'dashboard') { el.innerHTML = projectsHtml(); return; }
+  el.innerHTML = '<div class="card empty">Pick a project from the sidebar or describe a new one above.</div>';
+}
+
+function projectsHtml() {
+  if (!S.projects.length) return '<div class="card empty">No projects yet. Describe an app above and press Build.</div>';
+  return `
+    <h3 style="margin:0">${S.view === 'projects' ? 'My Projects' : 'Recent projects'}</h3>
+    <div class="grid">${S.projects.map((p) => `
+      <div class="card pcard" data-open="${esc(p.id)}">
+        <h3>${esc(p.name)}</h3>
+        <div class="row-between">
+          <span class="badge ${esc(p.status)}">${esc(LABEL[p.status] || p.status)}</span>
+          <span class="muted" style="font-size:12px">${ago(p.updatedAt)}</span>
+        </div>
+      </div>`).join('')}
+    </div>`;
+}
+
+function workspaceHtml() {
+  const p = S.current;
+  const st = S.busy ? 'working' : S.status;
+  const tabs = [['chat', 'Chat'], ['code', 'Code'], ['preview', 'Preview'], ['versions', 'Versions']];
+  let body;
+  if (S.tab === 'chat') {
+    body = `
+      <div class="msgs" id="msgs">${messagesHtml()}</div>
+      <div class="composer">
+        <textarea id="composerText" rows="2" placeholder="Ask for a change, e.g. add a dark mode toggle" ${S.busy ? 'disabled' : ''}></textarea>
+        <button class="btn-grad" id="sendBtn" data-action="send" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Working…' : 'Send'}</button>
+      </div>`;
+  } else if (S.tab === 'code') body = codeHtml();
+  else if (S.tab === 'preview') body = previewHtml();
+  else body = versionsHtml();
+
+  return `
+    <section class="card ws">
+      <div class="ws-head">
+        <div class="ws-title">▣ ${esc(p.name)} <span id="wsStatus" class="badge ${esc(st)}">${esc(LABEL[st] || st)}</span></div>
+        <div class="spacer"></div>
+        <button class="btn" data-action="rename">Rename</button>
+        <button class="btn" data-action="delete">Delete</button>
+        <button class="btn-grad" data-action="deploy">Deploy</button>
+      </div>
+      <div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${S.tab === k ? 'on' : ''}" data-tab="${k}">${l}</button>`).join('')}</div>
+      ${body}
+    </section>`;
+}
+
+function messagesHtml() {
+  if (!S.messages.length) return '<div class="empty">No messages yet. Describe what to build in the box below.</div>';
+  return S.messages.map((m) => `
+    <div class="msg ${m.agent === 'You' ? 'you' : ''} ${m.agent === 'QA' ? 'qa' : ''}">
+      <div class="who">${esc(m.agent)} · ${fmtTime(m.at)}</div>
+      <div class="txt">${esc(m.text)}</div>
+    </div>`).join('');
+}
+
+function codeHtml() {
+  const p = S.current;
+  const files = Object.keys(p.files);
+  return `
+    <div class="split">
+      <div class="explorer">
+        <div class="label">EXPLORER</div>
+        ${files.map((f) => `<button class="file ${f === S.file ? 'on' : ''}" data-file="${esc(f)}">📄 ${esc(f)}</button>`).join('') || '<span class="muted">No files yet</span>'}
+      </div>
+      <div class="editor">
+        <div class="bar-row">
+          <span>${esc(S.file)} <span id="dirtyTag" style="color:var(--warn)">${S.dirty ? '● unsaved' : ''}</span></span>
+          <button class="btn" data-action="save">Save (Ctrl+S)</button>
+        </div>
+        <textarea id="editor" spellcheck="false">${esc(p.files[S.file] ?? '')}</textarea>
+      </div>
+    </div>`;
+}
+
+function previewHtml() {
+  const id = encodeURIComponent(S.current.id);
+  const widths = { desktop: '100%', tablet: '820px', mobile: '390px' };
+  return `
+    <div>
+      <div class="preview-bar">
+        <div class="seg">${Object.keys(widths).map((d) => `<button class="${S.device === d ? 'on' : ''}" data-device="${d}">${d[0].toUpperCase() + d.slice(1)}</button>`).join('')}</div>
+        <button class="btn" data-action="refresh">↻ Refresh</button>
+        <a class="btn" href="/preview/${id}/" target="_blank" rel="noopener">Open in new tab ↗</a>
+      </div>
+      <div class="frame-wrap">
+        <iframe id="frame" title="Live preview" sandbox="allow-scripts allow-forms allow-modals"
+          style="width:${widths[S.device]}" src="/preview/${id}/?t=${Date.now()}"></iframe>
+      </div>
+      <div class="note muted">The preview shows public/index.html only. server.js, package.json and schema.sql are saved but not run yet.</div>
+    </div>`;
+}
+
+function versionsHtml() {
+  const v = S.current.versions || [];
+  if (!v.length) return '<div class="empty">No checkpoints yet. The files are saved before each Builder turn and before each restore.</div>';
+  return `<div class="versions">${v.map((x) => `
+    <div class="ver">
+      <div><b>${ago(x.at)}</b> <span class="muted">${esc(x.label)}</span></div>
+      <button class="btn" data-restore="${esc(x.id)}" ${S.busy ? 'disabled' : ''}>Restore</button>
+    </div>`).join('')}</div>`;
+}
+
+function renderRight() {
+  const msgs = S.messages;
+  const lastAgent = msgs.length ? msgs[msgs.length - 1].agent : null;
+  const agents = AGENTS.map((a) => {
+    const has = msgs.some((m) => m.agent === a);
+    const st = S.busy && lastAgent === a ? 'working' : has ? 'done' : 'idle';
+    return `<div class="arow"><span class="dot ${st}"></span><span>${a}</span><span class="st">${st}</span></div>`;
+  }).join('');
+  const activity = msgs.slice(-8).reverse().map((m) =>
+    `<div class="act"><b>${esc(m.agent)}</b><span>${esc(m.text.slice(0, 220))}</span><div class="muted" style="font-size:11px">${ago(m.at)}</div></div>`
+  ).join('') || '<div class="muted">No agent activity yet.</div>';
+  const logs = msgs.slice(-10).map((m) => `[${fmtTime(m.at)}] ${m.agent}: ${m.text.slice(0, 160)}`).join('\n')
+    || (S.current ? 'No output yet.' : 'Open a project to see logs.');
+
+  $('#right').innerHTML = `
+    <div class="card panel">
+      <h4>Live Agents <span style="color:var(--cyan);font-size:12px;font-weight:500">${S.busy ? '● working' : ''}</span></h4>
+      ${agents}
+    </div>
+    <div class="card panel">
+      <h4>Agent Activity</h4>
+      ${activity}
+    </div>
+    <div class="card panel">
+      <h4>Build &amp; Deployment Logs</h4>
+      <pre class="logbox">${esc(logs)}</pre>
+      <div class="muted" style="font-size:12px;margin-top:10px">Deploy is not connected yet (Phase 5).</div>
+    </div>`;
+}
+
+/* ---------- Events ---------- */
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-action],[data-go],[data-open],[data-file],[data-tab],[data-device],[data-chip],[data-soon],[data-restore]');
+  if (!el) return;
+  const d = el.dataset;
+
+  if ('soon' in d) return toast('Not part of this build yet.', 'info');
+  if ('go' in d) return d.go === 'projects' ? goProjects() : goHome();
+  if ('open' in d) return openProject(d.open);
+  if ('chip' in d) {
+    const ta = $('#heroText');
+    if (ta) { ta.value = CHIPS[d.chip]; ta.focus(); }
+    return;
+  }
+  if ('file' in d) return switchFile(d.file);
+  if ('tab' in d) { S.tab = d.tab; return renderCenter(); }
+  if ('device' in d) { S.device = d.device; return renderCenter(); }
+  if ('restore' in d) return restore(d.restore);
+
+  switch (d.action) {
+    case 'new': goHome(); $('#heroText')?.focus(); break;
+    case 'start': return startProject($('#heroText')?.value);
+    case 'send': return sendMessage();
+    case 'save': return saveFile();
+    case 'refresh': return renderCenter();
+    case 'deploy': return deploy();
+    case 'rename': return renameProject();
+    case 'delete': return deleteProject();
+  }
+});
+
+document.addEventListener('input', (e) => {
+  if (e.target.id === 'editor') {
+    S.dirty = true;
+    const tag = $('#dirtyTag');
+    if (tag) tag.textContent = '● unsaved';
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's' && S.current && S.tab === 'code') {
+    e.preventDefault();
+    saveFile();
+    return;
+  }
+  if (e.key === 'Enter' && !e.shiftKey && e.target.id === 'heroText') {
+    e.preventDefault();
+    startProject(e.target.value);
+  }
+  if (e.key === 'Enter' && !e.shiftKey && e.target.id === 'composerText') {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+/* ---------- Init ---------- */
+(async function init() {
+  await refreshList();
+  renderAll();
+})();
+</script>
+</body>
+</html>
