@@ -14,14 +14,14 @@ if (!DATABASE_URL) {
   process.exit(1);
 }
 const KEITH_BASE = process.env.KEITH_BASE_URL || 'https://apis.keithsite.lol/';
-const KEITH_PATHS = (process.env.KEITH_PATHS || '/ai/gpt,/ai/claudeai,/ai/gemini,/ai/deepseek,/keithai')
+const KEITH_PATHS = (process.env.KEITH_PATHS || '/ai/gpt,/ai/claudeai,/ai/gemini')
   .split(',').map((s) => s.trim()).filter(Boolean);
+const KEITH_MAX_URL = 7000;               // Keith accepts GET query strings only
 const CHAT_URL = process.env.CHAT_URL || 'https://ch.at/v1/chat/completions';
-const KEITH_TIMEOUT_MS = 25_000;
-const CHAT_TIMEOUT_MS = 120_000;
-const KEITH_MAX_URL = 7000;      // Keith accepts GET query strings only
-const HISTORY_MESSAGES = 12;     // chat messages sent to the model
-const BUILD_ATTEMPTS = 2;        // one try plus one repair
+const CHAT_TIMEOUT_MS = 45_000;           // chat replies
+const BUILD_TIMEOUT_MS = 90_000;          // full pages take longer
+const HISTORY_MESSAGES = 12;
+const BUILD_ATTEMPTS = 2;                 // one try plus one repair
 const MAX_HTML_CHARS = 200_000;
 const MAX_VERSIONS = 10;
 const MAX_SUMMARY_CHARS = 800;
@@ -46,22 +46,29 @@ const BUILD_RULES = [
 ].join(' ');
 
 const CHAT_RULES = (summary) => [
-  'You are the assistant in BeraForge AI, a tool where people describe small web pages and the Builder writes them.',
-  'Answer the user directly and conversationally, in a few short sentences unless they ask for more.',
-  'Do not write HTML in a chat reply.',
+  'You are the BeraForge AI assistant. BeraForge has a Builder that writes web pages from descriptions.',
+  'Never say you cannot write code or pass work to another agent. When the user describes a page, say the Builder will write it,',
+  'and tell them to reply "yes" or type /build followed by the description to start it.',
+  'Answer questions directly in a few short sentences. Do not write HTML in a chat reply.',
   summary
-    ? `The project has a page built so far. Recent changes:\n${summary}`
-    : 'The project has no page yet. If the user wants one, invite them to describe it.',
+    ? `The project already has a page. Changes so far:\n${summary}`
+    : 'The project has no page yet.',
 ].join(' ');
 
-// ---------- Routing (no model call needed) ----------
-const BUILD_VERB = /\b(build|create|make|generate|change|update|fix|add|remove|move|restyle|redesign|rename)\b/i;
-const BUILD_NOUN = /\b(page|website|site|app|dashboard|form|landing|counter|todo|game|calculator|blog|shop|store|menu|modal|navbar|header|footer|buttons?|colou?rs?|dark mode|light mode|font|layout|background|animation|design)\b/i;
-const QUESTION_START = /^(what|why|who|when|where|explain|tell me|how does|is|are|can you explain|do you)\b/i;
+// ---------- Routing (no model call) ----------
+const GREETING = /^\s*(hi|hello|hey|yo|hola|thanks|thank you|ok|okay)([\s,!.?]+(bro|there|man|team))?[\s!.?]*$/i;
+const BUILD_VERB = /\b(build|create|make|generate|change|update|fix|add|remove|move|restyle|redesign|rename|provide|code|codes|write|design)\b/i;
+const BUILD_NOUN = /\b(page|website|site|app|portfolio|dashboard|form|landing|counter|todo|game|calculator|blog|shop|store|menu|modal|navbar|header|footer|buttons?|colou?rs?|neon|dark mode|light mode|font|layout|background|animation|section|sections|hero|about|contact|company)\b/i;
+const QUESTION_START = /^(what|why|who|when|where|explain|tell me|how does|is|are|do you)\b/i;
+const CONFIRM = /\b(yes|yeah|yep|go|go with that|do it|do its|just do|it now|build it|make it|sure|please|ok do it|okay do it)\b/i;
 
 function isBuildRequest(text) {
   if (QUESTION_START.test(text) && !BUILD_VERB.test(text)) return false;
   return BUILD_VERB.test(text) || BUILD_NOUN.test(text);
+}
+
+function isConfirm(text) {
+  return text.length <= 60 && CONFIRM.test(text) && !isBuildRequest(text);
 }
 
 // ---------- Database ----------
@@ -121,8 +128,28 @@ async function recentHistory(pid) {
   return r.rows.map((m) => ({ role: m.role, content: m.body.slice(0, 1500) }));
 }
 
+// When the user says "yes" or "do it", find the description they gave earlier.
+// The newest row is the confirmation itself, so it is skipped.
+async function pendingRequest(pid) {
+  const rows = (await q(
+    `SELECT role, body FROM bf_messages WHERE project_id=$1 AND role IN ('user','assistant')
+     ORDER BY id DESC LIMIT 16`,
+    [pid]
+  )).rows.slice(1);
+  const idx = rows.findIndex((r) => r.role === 'user' && isBuildRequest(r.body));
+  if (idx === -1) return null;
+  const parts = rows.slice(0, idx + 1)
+    .filter((r) => r.role === 'user' && !GREETING.test(r.body))
+    .map((r) => r.body)
+    .reverse();
+  const lastReply = rows.find((r) => r.role === 'assistant');
+  let text = parts.join('. ');
+  if (lastReply) text += `. Context from the last reply: ${lastReply.body.slice(0, 500)}`;
+  return text.slice(0, 1200);
+}
+
 // ---------- Model providers ----------
-// Keith replies look like { status, creator, result }. Some endpoints may return plain text.
+// Keith replies look like { status, creator, result }.
 function keithResult(raw) {
   let j;
   try { j = JSON.parse(raw); } catch { return raw.trim() || null; }
@@ -131,40 +158,47 @@ function keithResult(raw) {
   return typeof j?.result === 'string' && j.result.trim() ? j.result : null;
 }
 
-// Keith takes one prompt in a GET query string, so the conversation is flattened into text.
+// Keith takes one prompt in a GET query string, so the messages are flattened into text.
 function flatten(messages) {
   return messages.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n') + '\n\nASSISTANT:';
 }
 
-async function askKeith(messages) {
+function keithUrl(p, prompt) {
+  const u = new URL(p, KEITH_BASE);
+  u.searchParams.set('q', prompt);
+  return u;
+}
+
+function fitsKeith(messages) {
   const prompt = flatten(messages);
+  return KEITH_PATHS.some((p) => keithUrl(p, prompt).href.length <= KEITH_MAX_URL);
+}
+
+async function askKeith(messages, timeoutMs) {
+  const prompt = flatten(messages);
+  const urls = KEITH_PATHS.map((p) => keithUrl(p, prompt)).filter((u) => u.href.length <= KEITH_MAX_URL);
+  if (!urls.length) throw new Error('prompt too long for a GET request');
   const errors = [];
-  for (const p of KEITH_PATHS) {
-    const url = new URL(p, KEITH_BASE);
-    url.searchParams.set('q', prompt);
-    if (url.href.length > KEITH_MAX_URL) {
-      errors.push('prompt too long for a GET request');
-      break; // every path has the same length, so stop here
-    }
+  for (const url of urls) {
     try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(KEITH_TIMEOUT_MS) });
+      const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const text = keithResult(await res.text());
       if (!text) throw new Error('no result in reply');
-      return { text, via: `Keith ${p}` };
+      return { text, via: `Keith ${url.pathname}` };
     } catch (err) {
-      errors.push(`${p}: ${err.message}`);
+      errors.push(`${url.pathname}: ${err.message}`);
     }
   }
   throw new Error(errors.join('; '));
 }
 
-async function askChAt(messages) {
+async function askChAt(messages, timeoutMs) {
   const res = await fetch(CHAT_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ messages }),
-    signal: AbortSignal.timeout(CHAT_TIMEOUT_MS),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = await res.json().catch(() => null);
@@ -173,16 +207,20 @@ async function askChAt(messages) {
   return { text, via: 'ch.at' };
 }
 
-// Chat: Keith first. Builds: ch.at first, because it has no URL length limit.
-async function ask(messages, purpose) {
-  const order = purpose === 'build' ? ['chat', 'keith'] : ['keith', 'chat'];
+// Keith first. `compact` is a shorter version of the same request, used when the full one is too long for Keith.
+// ch.at receives the full request as the fallback.
+async function ask(full, compact, timeoutMs) {
+  const keithMessages = compact && !fitsKeith(full) ? compact : full;
   const errors = [];
-  for (const name of order) {
-    try {
-      return name === 'keith' ? await askKeith(messages) : await askChAt(messages);
-    } catch (err) {
-      errors.push(`${name === 'keith' ? 'Keith' : 'ch.at'}: ${err.message}`);
-    }
+  try {
+    return await askKeith(keithMessages, timeoutMs);
+  } catch (err) {
+    errors.push(`Keith: ${err.message}`);
+  }
+  try {
+    return await askChAt(full, timeoutMs);
+  } catch (err) {
+    errors.push(`ch.at: ${err.message}`);
   }
   throw new Error(errors.join(' | '));
 }
@@ -250,21 +288,27 @@ async function projectView(id) {
 }
 
 // ---------- Build ----------
-async function buildPage(pid, request, current) {
+async function buildPage(pid, request, current, summary) {
   let feedback = '';
   for (let attempt = 1; attempt <= BUILD_ATTEMPTS; attempt++) {
     await log(pid, 'Builder', attempt === 1 ? 'Writing index.html…' : 'Trying again with the fixes…');
 
-    const parts = [`Request: ${request}`];
-    parts.push(current
-      ? `Change the existing page below. Keep everything the request does not change, and return the complete page.\n\nExisting page:\n${current}`
+    const head = [`Request: ${request}`];
+    head.push(current
+      ? 'Change the existing page. Keep everything the request does not change. Return the complete page.'
       : 'Create the page from scratch.');
-    if (feedback) parts.push(`The previous attempt had these problems. Fix them: ${feedback}`);
+    if (feedback) head.push(`Fix these problems from the last attempt: ${feedback}`);
 
-    const reply = await ask(
-      [{ role: 'system', content: BUILD_RULES }, { role: 'user', content: parts.join('\n\n') }],
-      'build'
-    );
+    const full = [
+      { role: 'system', content: BUILD_RULES },
+      { role: 'user', content: [...head, current ? `Existing page:\n${current}` : ''].filter(Boolean).join('\n\n') },
+    ];
+    const compact = current ? [
+      { role: 'system', content: BUILD_RULES },
+      { role: 'user', content: [...head, `Earlier changes already in the page: ${summary || 'none recorded'}. Rebuild the complete page with the request applied.`].join('\n\n') },
+    ] : null;
+
+    const reply = await ask(full, compact, BUILD_TIMEOUT_MS);
     await log(pid, 'Builder', `Reply from ${reply.via}`);
 
     const html = extractHtml(reply.text);
@@ -287,16 +331,25 @@ async function runTurn(pid, text, mode) {
     await setStatus(pid, 'working');
     const project = (await q('SELECT html, summary FROM bf_projects WHERE id=$1', [pid])).rows[0];
     const hasPage = Boolean(project.html && project.html !== STARTER_HTML);
-    const build = mode === 'build' || (mode === 'auto' && isBuildRequest(text));
+
+    let request = text;
+    let build = mode === 'build' || (mode === 'auto' && isBuildRequest(text));
+    if (!build && mode === 'auto' && isConfirm(text)) {
+      const pending = await pendingRequest(pid);
+      if (pending) {
+        build = true;
+        request = pending;
+      }
+    }
 
     if (build) {
-      const html = await buildPage(pid, text, hasPage ? project.html : null);
+      const html = await buildPage(pid, request, hasPage ? project.html : null, project.summary);
       if (html) {
-        if (hasPage) await saveVersion(pid, `Before: ${text.slice(0, 120)}`, project.html);
+        if (hasPage) await saveVersion(pid, `Before: ${request.slice(0, 120)}`, project.html);
         await q('UPDATE bf_projects SET html=$2, summary=$3, updated_at=now() WHERE id=$1',
-          [pid, html, addSummary(project.summary, text)]);
+          [pid, html, addSummary(project.summary, request)]);
         await log(pid, 'Builder', `Saved index.html (${html.length} characters). The preview is updated.`);
-        await save(pid, 'assistant', 'Assistant', `Done. ${hasPage ? 'Updated' : 'Built'} the page: ${text.slice(0, 140)}`);
+        await save(pid, 'assistant', 'Assistant', `Done. ${hasPage ? 'Updated' : 'Built'} the page: ${request.slice(0, 140)}`);
         status = 'ready';
       } else {
         await log(pid, 'Orchestrator', 'Not saved. Your previous page is unchanged. Try a shorter request.');
@@ -304,7 +357,11 @@ async function runTurn(pid, text, mode) {
       }
     } else {
       const history = await recentHistory(pid);
-      const reply = await ask([{ role: 'system', content: CHAT_RULES(project.summary) }, ...history], 'chat');
+      const reply = await ask(
+        [{ role: 'system', content: CHAT_RULES(project.summary) }, ...history],
+        null,
+        CHAT_TIMEOUT_MS
+      );
       await save(pid, 'assistant', 'Assistant', reply.text.trim().slice(0, 4000));
       status = hasPage ? 'ready' : 'draft';
     }
@@ -375,7 +432,7 @@ app.delete('/api/projects/:id', requireProject, h(async (req, res) => {
   res.status(204).end();
 }));
 
-// Live events: subscribe first, then send a snapshot. The client drops duplicate message IDs.
+// Live events: subscribe first, then send a snapshot
 app.get('/api/projects/:id/events', requireProject, h(async (req, res) => {
   const pid = req.project.id;
   res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
@@ -395,7 +452,7 @@ app.get('/api/projects/:id/events', requireProject, h(async (req, res) => {
   res.write(`event: snapshot\ndata: ${JSON.stringify(snap)}\n\n`);
 }));
 
-// Send a message. Prefix with /build or /chat to force a mode.
+// Send a message. Greetings get a fixed reply. /build and /chat force a mode.
 app.post('/api/projects/:id/messages', requireProject, h(async (req, res) => {
   const pid = req.project.id;
   if (running.has(pid)) return res.status(409).json({ error: 'Still working on the previous message' });
@@ -411,6 +468,13 @@ app.post('/api/projects/:id/messages', requireProject, h(async (req, res) => {
   }
 
   await save(pid, 'user', 'You', text);
+
+  if (mode === 'auto' && GREETING.test(text)) {
+    await save(pid, 'assistant', 'Assistant', 'Hi! Tell me what to build, or ask about the page you have.');
+    publish(pid, 'status', { status: (await q('SELECT status FROM bf_projects WHERE id=$1', [pid])).rows[0].status });
+    return res.status(202).json({ started: false });
+  }
+
   res.status(202).json({ started: true });
   runTurn(pid, text, mode).catch((err) => console.error('turn crashed:', err));
 }));
