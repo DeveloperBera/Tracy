@@ -17,18 +17,16 @@ a{color:var(--cyan);text-decoration:none}
 .btn{background:transparent;border:1px solid var(--border-2);border-radius:9px;padding:7px 12px;cursor:pointer;white-space:nowrap}
 .btn:hover{border-color:var(--violet)}
 .btn:disabled{opacity:.45;cursor:not-allowed}
-select.btn{background:var(--panel-2)}
 .btn-grad{background:linear-gradient(90deg,var(--violet),#6D5BF0);border:0;color:#fff;font-weight:600;border-radius:9px;padding:9px 16px;cursor:pointer}
 .btn-grad:disabled{opacity:.5;cursor:not-allowed}
 .badge{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--border-2);color:var(--muted);white-space:nowrap}
-.badge.ready,.badge.verified,.badge.done{color:var(--ok);border-color:rgba(52,211,153,.4)}
-.badge.failed,.badge.error{color:var(--err);border-color:rgba(248,113,113,.4)}
-.badge.building,.badge.working{color:var(--cyan);border-color:rgba(34,211,238,.4)}
-.badge.untested{color:var(--warn);border-color:rgba(251,191,36,.35)}
+.badge.ready{color:var(--ok);border-color:rgba(52,211,153,.4)}
+.badge.failed{color:var(--err);border-color:rgba(248,113,113,.4)}
+.badge.working{color:var(--cyan);border-color:rgba(34,211,238,.4)}
 .spacer{flex:1}
 .row-between{display:flex;justify-content:space-between;align-items:center;gap:8px}
 
-.app{display:grid;grid-template-columns:230px minmax(0,1fr) 310px;grid-template-rows:64px minmax(0,1fr);height:100vh}
+.app{display:grid;grid-template-columns:230px minmax(0,1fr) 300px;grid-template-rows:64px minmax(0,1fr);height:100vh}
 header{grid-column:1/-1;display:flex;align-items:center;gap:18px;padding:0 20px;border-bottom:1px solid var(--border)}
 .brand{display:flex;align-items:center;gap:10px}
 .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--violet),var(--cyan));display:grid;place-items:center;font-weight:800;color:#fff}
@@ -38,7 +36,6 @@ header{grid-column:1/-1;display:flex;align-items:center;gap:18px;padding:0 20px;
 .topnav a{color:var(--muted);cursor:pointer}
 .topnav a:hover,.topnav a.on{color:var(--text)}
 .upgrade{border-color:var(--violet);color:#C4B5FD}
-.bell{background:none;border:0;cursor:pointer;font-size:17px;padding:4px}
 .avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--violet),var(--cyan));display:grid;place-items:center;font-weight:700}
 
 .side{border-right:1px solid var(--border);padding:16px;display:flex;flex-direction:column;gap:14px;overflow:auto}
@@ -47,6 +44,9 @@ header{grid-column:1/-1;display:flex;align-items:center;gap:18px;padding:0 20px;
 .sidenav a{color:var(--muted);padding:10px 12px;border-radius:9px;cursor:pointer}
 .sidenav a:hover{color:var(--text);background:var(--panel-2)}
 .sidenav a.on{color:var(--text);background:var(--panel-2);box-shadow:inset 2px 0 0 var(--violet)}
+.recent{display:flex;flex-direction:column;gap:2px}
+.recent button{background:none;border:0;text-align:left;padding:7px 10px;border-radius:8px;color:var(--muted);cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.recent button:hover,.recent button.on{color:var(--text);background:var(--panel-2)}
 .plan{padding:14px}
 .meter{display:flex;justify-content:space-between;font-size:13px;margin-top:12px}
 .bar{height:6px;border-radius:6px;background:var(--panel-2);overflow:hidden;margin-top:7px}
@@ -57,59 +57,55 @@ header{grid-column:1/-1;display:flex;align-items:center;gap:18px;padding:0 20px;
 .sidebrand{margin-top:auto}
 .sidebrand small{display:block;color:var(--muted);font-size:11px;margin-top:6px}
 
-.main{overflow:auto;padding:18px;display:flex;flex-direction:column;gap:16px;min-width:0}
+.main{overflow:auto;padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
 .hero{padding:22px;background:radial-gradient(900px 260px at 85% -30%,rgba(139,92,246,.22),transparent),var(--panel)}
 .hero h1{margin:0;font-size:22px;font-weight:700}
 .hero p{margin:4px 0 14px;color:var(--muted)}
 .prompt{display:flex;gap:10px;align-items:flex-end;border:1px solid var(--border-2);border-radius:12px;padding:10px;background:var(--bg)}
-.prompt textarea{flex:1;background:none;border:0;outline:none;resize:none;min-height:44px;max-height:140px}
-.stack{display:flex;flex-direction:column;gap:6px}
+.prompt textarea,.composer textarea{flex:1;background:none;border:0;outline:none;resize:none;min-height:44px;max-height:140px}
 .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .chip{background:var(--panel-2);border:1px solid var(--border-2);border-radius:999px;padding:4px 12px;font-size:12px;color:var(--muted);cursor:pointer}
 .chip:hover{color:var(--text);border-color:var(--cyan)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.pcard{padding:16px;cursor:pointer}
+.pcard:hover{border-color:var(--violet)}
+.pcard h3{margin:0 0 8px;font-size:15px}
+.empty{padding:28px;text-align:center;color:var(--muted)}
 
-.ws{display:flex;flex-direction:column;min-height:600px;overflow:hidden}
+.ws{display:flex;flex-direction:column;min-height:640px;overflow:hidden;flex:1}
 .ws-head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap}
 .ws-title{font-weight:600;font-size:15px;display:flex;gap:8px;align-items:center}
-.change{display:flex;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);align-items:center;flex-wrap:wrap}
-.change input{flex:1;min-width:180px;background:var(--bg);border:1px solid var(--border-2);border-radius:9px;padding:8px 10px;outline:none}
-.change input:focus{border-color:var(--violet)}
 .tabs{display:flex;gap:4px;padding:0 10px;border-bottom:1px solid var(--border);overflow-x:auto}
 .tab{background:none;border:0;padding:12px 10px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
 .tab.on{color:var(--text);border-bottom-color:var(--violet)}
-.split{display:grid;grid-template-columns:200px minmax(0,1fr) minmax(0,1fr);flex:1;min-height:460px}
+
+.msgs{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px;min-height:460px;max-height:62vh}
+.msg{border:1px solid var(--border);border-radius:12px;padding:10px 12px;background:var(--panel-2);max-width:92%}
+.msg.you{align-self:flex-end;background:rgba(139,92,246,.1);border-color:rgba(139,92,246,.35)}
+.msg.qa{border-color:rgba(251,191,36,.25)}
+.msg .who{font-size:11px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px}
+.msg .txt{white-space:pre-wrap;word-break:break-word;font-size:13.5px}
+.composer{display:flex;gap:8px;padding:12px;border-top:1px solid var(--border);align-items:flex-end}
+.composer textarea{border:1px solid var(--border-2);border-radius:10px;padding:9px 10px;background:var(--bg)}
+.composer textarea:focus,.prompt:focus-within{border-color:var(--violet)}
+
+.split{display:grid;grid-template-columns:190px minmax(0,1fr);flex:1;min-height:460px}
 .explorer{border-right:1px solid var(--border);padding:10px;display:flex;flex-direction:column;gap:2px;overflow:auto}
 .label{font-size:11px;letter-spacing:.1em;color:var(--muted);margin:4px 6px 8px}
 .file{background:none;border:0;text-align:left;padding:7px 8px;border-radius:7px;color:var(--muted);cursor:pointer;font-size:13px;word-break:break-all}
 .file.on,.file:hover{background:var(--panel-2);color:var(--text)}
-.editor{display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--border)}
+.editor{display:flex;flex-direction:column;min-width:0}
 .bar-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border);color:var(--muted);font-size:12px}
-#editor{flex:1;min-height:360px;background:#090B12;border:0;outline:none;resize:none;padding:14px;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#D6DAE8;tab-size:2;white-space:pre}
-.pv-col{display:flex;flex-direction:column;min-width:0}
-.pv-col iframe{flex:1;width:100%;border:0;background:#fff;min-height:400px}
-.preview-full{display:flex;flex-direction:column;flex:1}
+#editor{flex:1;min-height:420px;background:#090B12;border:0;outline:none;resize:none;padding:14px;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#D6DAE8;tab-size:2;white-space:pre}
 .preview-bar{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);flex-wrap:wrap}
 .seg{display:flex;border:1px solid var(--border-2);border-radius:9px;overflow:hidden}
 .seg button{background:none;border:0;padding:6px 12px;color:var(--muted);cursor:pointer}
 .seg button.on{background:var(--panel-2);color:var(--text)}
-.frame-wrap{flex:1;display:flex;justify-content:center;background:#05060A;padding:12px;min-height:440px;overflow:auto}
-#frame{background:#fff;border:0;border-radius:8px;height:100%;min-height:420px;max-width:100%;transition:width .2s}
-.term{margin:0;padding:14px;flex:1;overflow:auto;font:12.5px/1.7 ui-monospace,Menlo,Consolas,monospace;color:#B7BFD3;background:#05060A;white-space:pre-wrap;min-height:420px}
-.lvl-error{color:var(--err)}
-.lvl-warn{color:var(--warn)}
-.pad{padding:14px}
+.frame-wrap{flex:1;display:flex;justify-content:center;background:#05060A;padding:12px;min-height:460px;overflow:auto}
+#frame{background:#fff;border:0;border-radius:8px;height:100%;min-height:440px;max-width:100%;transition:width .2s}
+.note{padding:10px 14px;font-size:12px;border-top:1px solid var(--border)}
 .versions{display:flex;flex-direction:column;gap:8px;padding:14px}
 .ver{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:10px}
-.ptable{width:100%;border-collapse:collapse;font-size:13px}
-.ptable th,.ptable td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top}
-.ptable th{color:var(--muted);font-weight:500;font-size:12px}
-.preview-text{font-size:12px;margin-top:4px;white-space:pre-wrap;word-break:break-word}
-.empty{padding:28px;text-align:center;color:var(--muted)}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
-.pcard{padding:16px;cursor:pointer}
-.pcard:hover{border-color:var(--violet)}
-.pcard h3{margin:0 0 6px;font-size:15px}
-.pcard p{margin:0 0 10px;color:var(--muted);font-size:13px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 
 .right{border-left:1px solid var(--border);padding:16px;display:flex;flex-direction:column;gap:14px;overflow:auto}
 .panel{padding:14px}
@@ -119,13 +115,11 @@ header{grid-column:1/-1;display:flex;align-items:center;gap:18px;padding:0 20px;
 .dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex:none}
 .dot.working{background:var(--cyan);box-shadow:0 0 8px var(--cyan);animation:pulse 1.2s infinite}
 .dot.done{background:var(--ok)}
-.dot.error{background:var(--err)}
 @keyframes pulse{50%{opacity:.35}}
 .act{padding:8px 0;border-bottom:1px solid var(--border);font-size:12.5px}
 .act b{display:block;font-weight:600}
-.act span{color:var(--muted)}
-.logbox{margin:0;background:#05060A;border:1px solid var(--border);border-radius:10px;padding:10px;font:11.5px/1.6 ui-monospace,Menlo,Consolas,monospace;color:#B7BFD3;max-height:220px;overflow:auto;white-space:pre-wrap;word-break:break-word}
-.note-box{padding:12px;border-radius:12px;border:1px solid var(--border-2);font-size:13px;margin-top:10px}
+.act span{color:var(--muted);word-break:break-word}
+.logbox{margin:0;background:#05060A;border:1px solid var(--border);border-radius:10px;padding:10px;font:11.5px/1.6 ui-monospace,Menlo,Consolas,monospace;color:#B7BFD3;max-height:240px;overflow:auto;white-space:pre-wrap;word-break:break-word}
 
 .toasts{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:8px;z-index:50}
 .toast{background:var(--panel-2);border:1px solid var(--border-2);border-left:3px solid var(--cyan);padding:10px 14px;border-radius:10px;max-width:380px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
@@ -133,7 +127,7 @@ header{grid-column:1/-1;display:flex;align-items:center;gap:18px;padding:0 20px;
 .toast.error{border-left-color:var(--err)}
 .toast.warn{border-left-color:var(--warn)}
 
-@media (max-width:1280px){.app{grid-template-columns:210px minmax(0,1fr) 270px}.split{grid-template-columns:160px minmax(0,1fr)}.pv-col{display:none}}
+@media (max-width:1280px){.app{grid-template-columns:210px minmax(0,1fr) 260px}}
 @media (max-width:980px){.app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}.side,.right,.topnav,.upgrade{display:none}header{padding:0 12px;gap:10px}.split{grid-template-columns:1fr}.explorer{flex-direction:row;overflow:auto;border-right:0;border-bottom:1px solid var(--border)}.label{display:none}}
 </style>
 </head>
@@ -149,11 +143,9 @@ header{grid-column:1/-1;display:flex;align-items:center;gap:18px;padding:0 20px;
       <a data-go="projects">Projects</a>
       <a data-soon>Templates</a>
       <a data-soon>Docs</a>
-      <a data-soon>Community</a>
     </nav>
     <div class="spacer"></div>
     <button class="btn upgrade" data-soon>✦ Upgrade</button>
-    <button class="bell" data-soon title="Notifications">🔔</button>
     <div class="avatar">B</div>
   </header>
 
@@ -163,11 +155,10 @@ header{grid-column:1/-1;display:flex;align-items:center;gap:18px;padding:0 20px;
       <a data-go="dashboard">▦ Dashboard</a>
       <a data-go="projects">▤ My Projects</a>
       <a data-soon>✧ AI Assistant</a>
-      <a data-soon>▣ Templates</a>
-      <a data-go="deployments">⬆ Deployments</a>
-      <a data-go="providers">⚙ API Providers</a>
       <a data-soon>⚙ Settings</a>
     </nav>
+    <div class="label" style="margin:4px 0 0">RECENT</div>
+    <div class="recent" id="recent"></div>
     <div class="card plan" id="planBox"></div>
     <div class="card promo">
       <h4>Build faster with <span class="gradtext">BeraForge Pro</span></h4>
@@ -192,28 +183,27 @@ header{grid-column:1/-1;display:flex;align-items:center;gap:18px;padding:0 20px;
 
 <script>
 const PLAN_LIMIT = 10;
-const AI_LIMIT = 1000;
 const CHIPS = {
-  'Full Stack App': 'Full-stack todo app with a clean UI, a database for tasks and a settings panel',
-  'Website': 'Modern one-page marketing website for a software startup with a hero, features and a contact form that saves messages',
-  'API': 'REST API explorer page where I can send requests to any URL and view formatted JSON responses',
-  'Mobile App': 'Mobile-first habit tracker with daily check-ins and streak counters saved in a database',
-  'Dashboard': 'Analytics dashboard with KPI cards, a line chart and a recent activity table',
-  'Blog': 'Minimal blog with a post list, reading view and a search box, with posts stored in a database',
-  'E-commerce': 'E-commerce storefront with a product grid, cart drawer and checkout summary'
+  'Full Stack App': 'A todo app with a clean UI and a settings panel',
+  'Website': 'A one-page marketing site for a software startup with a hero, features and a contact form',
+  'API': 'A REST API explorer page where I can send requests to a URL and view formatted JSON',
+  'Mobile App': 'A mobile-first habit tracker with daily check-ins and streak counters',
+  'Dashboard': 'An analytics dashboard with KPI cards, a chart and a recent activity table',
+  'Blog': 'A minimal blog with a post list, a reading view and a search box',
+  'E-commerce': 'An e-commerce storefront with a product grid, cart drawer and checkout summary'
 };
-const AGENTS = ['Orchestrator', 'API Integration', 'Database', 'Backend', 'Frontend', 'QA', 'Integration', 'Deployment'];
-const STATUS_LABEL = { draft: 'Draft', building: 'Building', ready: 'Ready', failed: 'Failed' };
+const AGENTS = ['Orchestrator', 'Builder', 'QA'];
+const LABEL = { draft: 'Draft', working: 'Working', ready: 'Ready', failed: 'Failed' };
 
 const S = {
-  projects: [], providers: [], tests: {}, current: null,
-  view: 'dashboard', file: 'public/index.html', tab: 'code',
-  busy: false, dirty: false, device: 'desktop', provider: 'ai_gpt'
+  projects: [], current: null, messages: [], status: 'draft', busy: false,
+  view: 'dashboard', tab: 'chat', file: 'public/index.html', dirty: false,
+  device: 'desktop', es: null
 };
 
 const $ = (sel) => document.querySelector(sel);
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const fmtTime = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+const fmtTime = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 const ago = (iso) => {
   const s = (Date.now() - new Date(iso)) / 1000;
   if (s < 60) return 'just now';
@@ -221,8 +211,6 @@ const ago = (iso) => {
   if (s < 86400) return Math.floor(s / 3600) + 'h ago';
   return Math.floor(s / 86400) + 'd ago';
 };
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const chatOptions = () => S.providers.filter((p) => p.kind === 'chat' && p.enabled);
 
 async function api(path, { method = 'GET', body } = {}) {
   const opts = { method, headers: {} };
@@ -232,11 +220,7 @@ async function api(path, { method = 'GET', body } = {}) {
   }
   const res = await fetch(path, opts);
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const err = new Error(data.error || `Request failed (${res.status})`);
-    err.data = data;
-    throw err;
-  }
+  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
   return data;
 }
 
@@ -251,159 +235,120 @@ function toast(msg, kind = 'info') {
 async function refreshList() {
   try { S.projects = (await api('/api/projects')).projects; }
   catch (e) { toast(e.message, 'error'); }
-}
-
-async function loadProviders() {
-  try { S.providers = (await api('/api/providers')).providers; }
-  catch (e) { toast(e.message, 'error'); }
-  if (!chatOptions().some((p) => p.id === S.provider)) S.provider = chatOptions()[0]?.id || 'ai_gpt';
-}
-
-async function loadCurrent(id) {
-  S.current = await api(`/api/projects/${encodeURIComponent(id)}`);
-  if (!S.current.files[S.file]) S.file = Object.keys(S.current.files)[0] || 'public/index.html';
-}
-
-async function openProject(id) {
-  try {
-    await loadCurrent(id);
-    S.view = 'dashboard';
-    S.tab = 'code';
-    S.dirty = false;
-    renderAll();
-  } catch (e) { toast(e.message, 'error'); }
-}
-
-function go(view) {
-  if (view === 'deployments') {
-    if (!S.current) return toast('Open a project to see its deployments.', 'info');
-    S.view = 'dashboard';
-    S.tab = 'logs';
-    return renderAll();
-  }
-  if (view === 'projects') {
-    S.current = null;
-    S.view = 'projects';
-    return refreshList().then(renderAll);
-  }
-  if (view === 'providers') {
-    S.view = 'providers';
-    return loadProviders().then(renderAll);
-  }
-  S.view = 'dashboard';
-  refreshList().then(renderAll);
-}
-
-// Subscribes to a build's live events and resolves when it finishes.
-function watch(id) {
-  return new Promise((resolve) => {
-    const es = new EventSource(`/api/projects/${encodeURIComponent(id)}/events`);
-    let seen = 0;
-    const timeout = setTimeout(() => finish(false), 10 * 60 * 1000);
-    const finish = (ok) => { clearTimeout(timeout); es.close(); resolve(ok); };
-    const mine = () => S.current?.id === id;
-
-    es.addEventListener('snapshot', (e) => {
-      const d = JSON.parse(e.data);
-      seen = Math.max(0, ...d.log.map((x) => x.id));
-      if (mine()) { S.current.lastLog = d.log; S.current.status = d.status; }
-      renderLive();
-      if (d.status !== 'building') finish(d.status === 'ready');
-    });
-    es.addEventListener('log', (e) => {
-      const d = JSON.parse(e.data);
-      if (d.id <= seen) return;
-      seen = d.id;
-      if (mine()) S.current.lastLog.push(d);
-      renderLive();
-    });
-    es.addEventListener('status', (e) => {
-      if (mine()) { S.current.status = JSON.parse(e.data).status; renderLive(); }
-    });
-    es.addEventListener('done', (e) => finish(JSON.parse(e.data).ok));
-  });
-}
-
-async function startBuild(text, mode = 'new') {
-  if (!text) return toast('Describe the app or change first.', 'warn');
-  if (S.busy) return;
-  S.busy = true;
-  renderAll();
-  try {
-    if (mode === 'new' || !S.current) {
-      S.current = await api('/api/projects', { method: 'POST', body: { prompt: text } });
-      S.file = 'public/index.html';
-      S.tab = 'code';
-      S.view = 'dashboard';
-    }
-    const id = S.current.id;
-    await api(`/api/projects/${encodeURIComponent(id)}/build`, {
-      method: 'POST',
-      body: { prompt: text, provider: S.provider, mode: mode === 'edit' ? 'edit' : 'new' }
-    });
-    renderAll();
-    const ok = await watch(id);
-    if (S.current?.id === id) await loadCurrent(id);
-    toast(ok ? 'Build saved. Open the Preview tab.' : 'Build failed. Check the Logs tab.', ok ? 'ok' : 'error');
-  } catch (e) {
-    toast(e.message, 'error');
-  } finally {
-    S.busy = false;
-    await refreshList();
-    renderAll();
-  }
-}
-
-function applyChange() {
-  const text = $('#change')?.value.trim();
-  if (!text) return toast('Describe the change first.', 'warn');
-  startBuild(text, 'edit');
-}
-
-async function testProvider(id) {
-  S.tests[id] = { pending: true };
-  renderCenter();
-  try { S.tests[id] = await api(`/api/providers/${encodeURIComponent(id)}/test`, { method: 'POST' }); }
-  catch (e) { S.tests[id] = { ok: false, error: e.message }; }
-  await loadProviders();
-  renderCenter();
   renderSide();
 }
 
-async function toggleProvider(id) {
-  const p = S.providers.find((x) => x.id === id);
-  if (!p) return;
+/* ---------- Live stream ---------- */
+function closeStream() {
+  if (S.es) { S.es.close(); S.es = null; }
+}
+
+function connectStream(id) {
+  closeStream();
+  const es = new EventSource(`/api/projects/${encodeURIComponent(id)}/events`);
+  S.es = es;
+  const mine = () => S.current && S.current.id === id;
+
+  es.addEventListener('snapshot', (e) => {
+    if (!mine()) return;
+    const d = JSON.parse(e.data);
+    S.messages = d.messages;
+    S.status = d.status;
+    S.busy = d.status === 'working';
+    updateLive();
+  });
+  es.addEventListener('message', (e) => {
+    if (!mine()) return;
+    const m = JSON.parse(e.data);
+    if (!S.messages.some((x) => x.id === m.id)) S.messages.push(m);
+    updateLive();
+  });
+  es.addEventListener('status', (e) => {
+    if (!mine()) return;
+    const wasBusy = S.busy;
+    S.status = JSON.parse(e.data).status;
+    S.busy = S.status === 'working';
+    updateLive();
+    if (wasBusy && !S.busy) reloadProject();
+  });
+}
+
+async function reloadProject() {
+  if (!S.current) return;
   try {
-    await api(`/api/providers/${encodeURIComponent(id)}`, { method: 'PATCH', body: { enabled: !p.enabled } });
-    await loadProviders();
-    renderAll();
+    const d = await api(`/api/projects/${encodeURIComponent(S.current.id)}`);
+    S.current = d;
+    if (!d.files[S.file]) S.file = Object.keys(d.files)[0] || 'public/index.html';
+    if ((S.tab === 'code' && !S.dirty) || S.tab === 'preview' || S.tab === 'versions') renderCenter();
+    renderSide();
   } catch (e) { toast(e.message, 'error'); }
 }
 
-async function restore(versionId) {
+/* ---------- Navigation ---------- */
+async function openProject(id) {
   try {
-    S.current = await api(`/api/projects/${encodeURIComponent(S.current.id)}/restore/${encodeURIComponent(versionId)}`, { method: 'POST' });
+    S.current = await api(`/api/projects/${encodeURIComponent(id)}`);
+    S.view = 'project';
+    S.tab = 'chat';
     S.dirty = false;
-    toast('Checkpoint restored', 'ok');
+    S.file = S.current.files['public/index.html'] !== undefined ? 'public/index.html' : (Object.keys(S.current.files)[0] || 'public/index.html');
+    S.messages = [];
+    S.status = S.current.status;
+    S.busy = S.status === 'working';
+    connectStream(id);
     renderAll();
   } catch (e) { toast(e.message, 'error'); }
 }
 
-async function deploy() {
+function goHome() {
+  closeStream();
+  S.current = null;
+  S.messages = [];
+  S.view = 'dashboard';
+  renderAll();
+}
+
+function goProjects() {
+  closeStream();
+  S.current = null;
+  S.messages = [];
+  S.view = 'projects';
+  refreshList().then(renderAll);
+}
+
+/* ---------- Actions ---------- */
+async function startProject(text) {
+  text = (text || '').trim();
+  if (!text) return toast('Describe the app first.', 'warn');
   try {
-    await api(`/api/projects/${encodeURIComponent(S.current.id)}/deploy`, { method: 'POST' });
-  } catch (e) {
-    toast(e.message, 'warn');
-  }
+    const p = await api('/api/projects', { method: 'POST', body: { name: text.slice(0, 40) } });
+    await refreshList();
+    await openProject(p.id);
+    await sendMessage(text);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function sendMessage(text) {
+  text = (text ?? $('#composerText')?.value ?? '').trim();
+  if (!text) return toast('Type a message first.', 'warn');
+  if (!S.current) return;
+  if (S.busy) return toast('The Builder is still working.', 'warn');
+  try {
+    await api(`/api/projects/${encodeURIComponent(S.current.id)}/messages`, { method: 'POST', body: { text } });
+    S.busy = true;
+    const box = $('#composerText');
+    if (box) box.value = '';
+    updateLive();
+  } catch (e) { toast(e.message, 'error'); }
 }
 
 async function saveFile() {
-  const p = S.current;
-  if (!p) return;
+  if (!S.current) return;
+  if (S.busy) return toast('Wait for the Builder to finish first.', 'warn');
   const content = $('#editor')?.value ?? '';
   try {
-    await api(`/api/projects/${encodeURIComponent(p.id)}/file`, { method: 'PUT', body: { path: S.file, content } });
-    p.files[S.file] = content;
+    await api(`/api/projects/${encodeURIComponent(S.current.id)}/file`, { method: 'PUT', body: { path: S.file, content } });
+    S.current.files[S.file] = content;
     S.dirty = false;
     toast(`Saved ${S.file}`, 'ok');
     renderCenter();
@@ -417,6 +362,16 @@ function switchFile(name) {
   renderCenter();
 }
 
+async function restore(versionId) {
+  if (S.busy) return toast('Wait for the Builder to finish first.', 'warn');
+  try {
+    S.current = await api(`/api/projects/${encodeURIComponent(S.current.id)}/restore/${encodeURIComponent(versionId)}`, { method: 'POST' });
+    S.dirty = false;
+    toast('Checkpoint restored. The previous files are saved as a checkpoint too.', 'ok');
+    renderAll();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
 async function renameProject() {
   const name = window.prompt('Project name', S.current.name);
   if (!name || !name.trim()) return;
@@ -428,15 +383,19 @@ async function renameProject() {
 }
 
 async function deleteProject() {
+  if (S.busy) return toast('Wait for the Builder to finish first.', 'warn');
   if (!confirm(`Delete "${S.current.name}"? This cannot be undone.`)) return;
   try {
     await api(`/api/projects/${encodeURIComponent(S.current.id)}`, { method: 'DELETE' });
-    S.current = null;
     toast('Project deleted', 'ok');
+    goHome();
     await refreshList();
-    if (S.projects.length) await openProject(S.projects[0].id);
-    else renderAll();
   } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deploy() {
+  try { await api(`/api/projects/${encodeURIComponent(S.current.id)}/deploy`, { method: 'POST' }); }
+  catch (e) { toast(e.message, 'warn'); }
 }
 
 /* ---------- Rendering ---------- */
@@ -446,182 +405,137 @@ function renderAll() {
   renderCenter();
   renderRight();
   document.querySelectorAll('.topnav a[data-go], .sidenav a[data-go]').forEach((a) => {
-    a.classList.toggle('on', a.dataset.go === S.view);
+    const on = (a.dataset.go === 'dashboard' && S.view === 'dashboard') || (a.dataset.go === 'projects' && S.view === 'projects');
+    a.classList.toggle('on', on);
   });
 }
 
-// Updates the live parts only, so unsaved editor text survives while a build runs.
-function renderLive() {
-  renderRight();
-  const p = S.current;
-  if (!p) return;
-  const st = S.busy ? 'building' : p.status;
+// Updates only the live parts, so text typed in the composer or editor survives while the Builder works.
+function updateLive() {
+  const st = S.busy ? 'working' : S.status;
   const badge = $('#wsStatus');
-  if (badge) { badge.className = `badge ${st}`; badge.textContent = STATUS_LABEL[st] || st; }
-  const pre = $('#logPre');
-  if (pre) { pre.innerHTML = logLines(p); pre.scrollTop = pre.scrollHeight; }
-  const agentsBox = $('#agentsBox');
-  if (agentsBox) agentsBox.innerHTML = agentTable();
+  if (badge) { badge.className = `badge ${st}`; badge.textContent = LABEL[st] || st; }
+  const msgs = $('#msgs');
+  if (msgs) { msgs.innerHTML = messagesHtml(); msgs.scrollTop = msgs.scrollHeight; }
+  const box = $('#composerText');
+  if (box) box.disabled = S.busy;
+  const send = $('#sendBtn');
+  if (send) { send.disabled = S.busy; send.textContent = S.busy ? 'Working…' : 'Send'; }
+  renderRight();
 }
 
 function renderSide() {
-  const aiUsed = S.providers.reduce((sum, p) => sum + (p.calls || 0), 0);
-  const aiPct = Math.min(100, (aiUsed / AI_LIMIT) * 100);
-  const projPct = Math.min(100, (S.projects.length / PLAN_LIMIT) * 100);
+  $('#recent').innerHTML = S.projects.slice(0, 8).map((p) =>
+    `<button class="${S.current && S.current.id === p.id ? 'on' : ''}" data-open="${esc(p.id)}">${esc(p.name)}</button>`
+  ).join('') || '<span class="muted" style="font-size:12px">No projects yet</span>';
+  const pct = Math.min(100, (S.projects.length / PLAN_LIMIT) * 100);
   $('#planBox').innerHTML = `
     <div class="row-between"><b>Free Plan</b><span class="badge" data-soon>Upgrade</span></div>
-    <div class="meter"><span class="muted">AI Requests</span><span>${aiUsed} / ${AI_LIMIT.toLocaleString()}</span></div>
-    <div class="bar"><i style="width:${aiPct}%"></i></div>
     <div class="meter"><span class="muted">Projects</span><span>${S.projects.length} / ${PLAN_LIMIT}</span></div>
-    <div class="bar"><i style="width:${projPct}%"></i></div>`;
+    <div class="bar"><i style="width:${pct}%"></i></div>`;
 }
 
 function renderHero() {
   const el = $('#hero');
-  const keep = $('#prompt')?.value ?? '';
-  if (S.view !== 'dashboard') { el.style.display = 'none'; el.innerHTML = ''; return; }
+  if (S.view !== 'dashboard' || S.current) { el.style.display = 'none'; el.innerHTML = ''; return; }
   el.style.display = '';
   el.innerHTML = `
     <h1>✦ Build Your Next Application with <span class="gradtext">AI</span></h1>
-    <p>Describe your idea. The agents plan, write the files, check them and save them to your project.</p>
+    <p>Describe your idea. The Builder writes the files one at a time, checks each one and keeps the conversation.</p>
     <div class="prompt">
-      <textarea id="prompt" rows="2" placeholder="Create a modern e-commerce website with a product list and a checkout form…"></textarea>
-      <div class="stack">
-        ${providerSelect()}
-        <button class="btn-grad" data-action="build" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Building…' : '✦ Build'}</button>
-      </div>
+      <textarea id="heroText" rows="2" placeholder="Create a modern e-commerce website with a product list and a checkout form…"></textarea>
+      <button class="btn-grad" data-action="start">✦ Build</button>
     </div>
     <div class="chips">${Object.keys(CHIPS).map((k) => `<span class="chip" data-chip="${esc(k)}">${esc(k)}</span>`).join('')}</div>`;
-  $('#prompt').value = keep;
-}
-
-function providerSelect() {
-  return `<select class="btn" data-provider title="Chat model used for this build">${chatOptions().map((p) =>
-    `<option value="${esc(p.id)}" ${p.id === S.provider ? 'selected' : ''}>${esc(p.path)}</option>`).join('')}</select>`;
 }
 
 function renderCenter() {
   const el = $('#content');
-  if (S.view === 'providers') { el.innerHTML = providersHtml(); return; }
-  if (S.view === 'projects') { el.innerHTML = projectsHtml(); return; }
   if (S.current) { el.innerHTML = workspaceHtml(); return; }
-  el.innerHTML = '<div class="card empty">No project open. Describe an app above and press Build, or pick one from My Projects.</div>';
+  if (S.view === 'projects' || S.view === 'dashboard') { el.innerHTML = projectsHtml(); return; }
+  el.innerHTML = '<div class="card empty">Pick a project from the sidebar or describe a new one above.</div>';
 }
 
 function projectsHtml() {
-  if (!S.projects.length) return '<div class="card empty">No projects yet. Describe an app on the dashboard and press Build.</div>';
+  if (!S.projects.length) return '<div class="card empty">No projects yet. Describe an app above and press Build.</div>';
   return `
-    <h3 style="margin:0">My Projects</h3>
+    <h3 style="margin:0">${S.view === 'projects' ? 'My Projects' : 'Recent projects'}</h3>
     <div class="grid">${S.projects.map((p) => `
       <div class="card pcard" data-open="${esc(p.id)}">
         <h3>${esc(p.name)}</h3>
-        <p>${esc(p.prompt || 'No description')}</p>
         <div class="row-between">
-          <span class="badge ${esc(p.status)}">${esc(STATUS_LABEL[p.status] || p.status)}</span>
+          <span class="badge ${esc(p.status)}">${esc(LABEL[p.status] || p.status)}</span>
           <span class="muted" style="font-size:12px">${ago(p.updatedAt)}</span>
         </div>
       </div>`).join('')}
     </div>`;
 }
 
-function providersHtml() {
-  const rows = S.providers.map((p) => {
-    const t = S.tests[p.id];
-    const status = p.kind === 'disabled' ? 'locked' : p.verified ? 'verified' : 'untested';
-    const cooling = p.cooldownUntil > Date.now() ? ' <span class="muted">cooling down</span>' : '';
-    let result = '';
-    if (t?.pending) result = '<span class="muted">testing…</span>';
-    else if (t) result = t.ok
-      ? `<span style="color:var(--ok)">${esc(t.contentType || '')} · ${t.latencyMs} ms</span><div class="muted preview-text">${esc(t.preview || '')}</div>`
-      : `<span style="color:var(--err)">${esc(t.error)}</span>`;
-    else if (p.lastError) result = `<span class="muted">last error: ${esc(p.lastError)}</span>`;
-    return `<tr>
-      <td><b>${esc(p.id)}</b><div class="muted" style="font-size:12px">${esc(p.path)}</div>${p.note ? `<div class="muted" style="font-size:12px">${esc(p.note)}</div>` : ''}</td>
-      <td>${esc(p.kind)}</td>
-      <td><span class="badge ${status}">${status}</span>${cooling}</td>
-      <td class="muted">${p.lastLatencyMs != null ? p.lastLatencyMs + ' ms' : '—'}</td>
-      <td>${p.kind === 'disabled' ? '<span class="muted">locked</span>' : `<button class="btn" data-toggle="${esc(p.id)}">${p.enabled ? 'Disable' : 'Enable'}</button>`}</td>
-      <td><button class="btn" data-test="${esc(p.id)}" ${p.kind === 'disabled' || t?.pending ? 'disabled' : ''}>Test</button></td>
-      <td style="max-width:320px">${result}</td>
-    </tr>`;
-  }).join('');
-  return `
-    <h3 style="margin:0">API Providers</h3>
-    <p class="muted" style="margin:0">Chat providers write the app files. Research and media endpoints can be tested here but are never used for code. A failed chat provider falls back to the next enabled one.</p>
-    <div class="card" style="overflow:auto">
-      <table class="ptable">
-        <thead><tr><th>Endpoint</th><th>Kind</th><th>Status</th><th>Latency</th><th></th><th></th><th>Last test</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>`;
-}
-
 function workspaceHtml() {
   const p = S.current;
-  const status = S.busy ? 'building' : p.status;
-  const tabs = [['code', 'Code'], ['preview', 'Preview'], ['terminal', 'Terminal'], ['logs', 'Logs'], ['agents', 'AI Agents'], ['versions', 'Versions']];
-  const body = S.tab === 'code' ? codeHtml()
-    : S.tab === 'preview' ? previewHtml()
-    : S.tab === 'terminal' || S.tab === 'logs' ? `<pre class="term" id="logPre">${logLines(p)}</pre>`
-    : S.tab === 'agents' ? `<div class="pad" id="agentsBox">${agentTable()}</div>`
-    : versionsHtml(p);
+  const st = S.busy ? 'working' : S.status;
+  const tabs = [['chat', 'Chat'], ['code', 'Code'], ['preview', 'Preview'], ['versions', 'Versions']];
+  let body;
+  if (S.tab === 'chat') {
+    body = `
+      <div class="msgs" id="msgs">${messagesHtml()}</div>
+      <div class="composer">
+        <textarea id="composerText" rows="2" placeholder="Ask for a change, e.g. add a dark mode toggle" ${S.busy ? 'disabled' : ''}></textarea>
+        <button class="btn-grad" id="sendBtn" data-action="send" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Working…' : 'Send'}</button>
+      </div>`;
+  } else if (S.tab === 'code') body = codeHtml();
+  else if (S.tab === 'preview') body = previewHtml();
+  else body = versionsHtml();
+
   return `
     <section class="card ws">
       <div class="ws-head">
-        <div class="ws-title">▣ ${esc(p.name)} <span id="wsStatus" class="badge ${esc(status)}">${esc(STATUS_LABEL[status] || status)}</span></div>
+        <div class="ws-title">▣ ${esc(p.name)} <span id="wsStatus" class="badge ${esc(st)}">${esc(LABEL[st] || st)}</span></div>
         <div class="spacer"></div>
         <button class="btn" data-action="rename">Rename</button>
         <button class="btn" data-action="delete">Delete</button>
-        <button class="btn-grad" data-action="deploy" ${S.busy ? 'disabled' : ''}>Deploy</button>
+        <button class="btn-grad" data-action="deploy">Deploy</button>
       </div>
-      <div class="change">
-        <input id="change" placeholder="Ask for a change, e.g. add a dark mode toggle" ${S.busy ? 'disabled' : ''} />
-        ${providerSelect()}
-        <button class="btn-grad" data-action="change" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Working…' : 'Apply'}</button>
-      </div>
-      <div class="tabs">
-        ${tabs.map(([k, l]) => `<button class="tab ${S.tab === k ? 'on' : ''}" data-tab="${k}">${l}</button>`).join('')}
-      </div>
+      <div class="tabs">${tabs.map(([k, l]) => `<button class="tab ${S.tab === k ? 'on' : ''}" data-tab="${k}">${l}</button>`).join('')}</div>
       ${body}
     </section>`;
 }
 
+function messagesHtml() {
+  if (!S.messages.length) return '<div class="empty">No messages yet. Describe what to build in the box below.</div>';
+  return S.messages.map((m) => `
+    <div class="msg ${m.agent === 'You' ? 'you' : ''} ${m.agent === 'QA' ? 'qa' : ''}">
+      <div class="who">${esc(m.agent)} · ${fmtTime(m.at)}</div>
+      <div class="txt">${esc(m.text)}</div>
+    </div>`).join('');
+}
+
 function codeHtml() {
   const p = S.current;
-  const id = encodeURIComponent(p.id);
   const files = Object.keys(p.files);
   return `
     <div class="split">
       <div class="explorer">
         <div class="label">EXPLORER</div>
-        ${files.length ? files.map((f) => `<button class="file ${f === S.file ? 'on' : ''}" data-file="${esc(f)}">📄 ${esc(f)}</button>`).join('') : '<span class="muted">No files yet</span>'}
+        ${files.map((f) => `<button class="file ${f === S.file ? 'on' : ''}" data-file="${esc(f)}">📄 ${esc(f)}</button>`).join('') || '<span class="muted">No files yet</span>'}
       </div>
       <div class="editor">
         <div class="bar-row">
-          <span>${esc(S.file)} <span style="color:var(--warn)">${S.dirty ? '● unsaved' : ''}</span></span>
+          <span>${esc(S.file)} <span id="dirtyTag" style="color:var(--warn)">${S.dirty ? '● unsaved' : ''}</span></span>
           <button class="btn" data-action="save">Save (Ctrl+S)</button>
         </div>
         <textarea id="editor" spellcheck="false">${esc(p.files[S.file] ?? '')}</textarea>
-      </div>
-      <div class="pv-col">
-        <div class="bar-row">
-          <span>Live preview</span>
-          <button class="btn" data-action="refresh">↻ Refresh</button>
-        </div>
-        <iframe title="Live preview" sandbox="allow-scripts allow-forms allow-modals" src="/preview/${id}/?t=${Date.now()}"></iframe>
       </div>
     </div>`;
 }
 
 function previewHtml() {
-  const widths = { desktop: '100%', tablet: '820px', mobile: '390px' };
   const id = encodeURIComponent(S.current.id);
+  const widths = { desktop: '100%', tablet: '820px', mobile: '390px' };
   return `
-    <div class="preview-full">
+    <div>
       <div class="preview-bar">
-        <div class="seg">
-          ${Object.keys(widths).map((d) => `<button class="${S.device === d ? 'on' : ''}" data-device="${d}">${d[0].toUpperCase() + d.slice(1)}</button>`).join('')}
-        </div>
+        <div class="seg">${Object.keys(widths).map((d) => `<button class="${S.device === d ? 'on' : ''}" data-device="${d}">${d[0].toUpperCase() + d.slice(1)}</button>`).join('')}</div>
         <button class="btn" data-action="refresh">↻ Refresh</button>
         <a class="btn" href="/preview/${id}/" target="_blank" rel="noopener">Open in new tab ↗</a>
       </div>
@@ -629,69 +543,37 @@ function previewHtml() {
         <iframe id="frame" title="Live preview" sandbox="allow-scripts allow-forms allow-modals"
           style="width:${widths[S.device]}" src="/preview/${id}/?t=${Date.now()}"></iframe>
       </div>
+      <div class="note muted">The preview shows public/index.html only. server.js, package.json and schema.sql are saved but not run yet.</div>
     </div>`;
 }
 
-function logLines(p) {
-  const lines = (p?.lastLog || []).map((l) =>
-    `<span class="lvl-${esc(l.level)}">[${fmtTime(l.at)}] ${esc(l.agent)} ${esc(l.level.toUpperCase())}: ${esc(l.msg)}</span>`);
-  return lines.length ? lines.join('\n') : 'No build output yet. Describe an app and press Build.';
-}
-
-function versionsHtml(p) {
-  if (!p.versions.length) return '<div class="empty">No checkpoints yet. Each successful build or change saves the previous version here.</div>';
-  return `<div class="versions">${p.versions.map((v) => `
+function versionsHtml() {
+  const v = S.current.versions || [];
+  if (!v.length) return '<div class="empty">No checkpoints yet. The files are saved before each Builder turn and before each restore.</div>';
+  return `<div class="versions">${v.map((x) => `
     <div class="ver">
-      <div><b>${ago(v.at)}</b> <span class="muted">${esc(v.label.slice(0, 140))}</span></div>
-      <button class="btn" data-restore="${esc(v.id)}">Restore</button>
+      <div><b>${ago(x.at)}</b> <span class="muted">${esc(x.label)}</span></div>
+      <button class="btn" data-restore="${esc(x.id)}" ${S.busy ? 'disabled' : ''}>Restore</button>
     </div>`).join('')}</div>`;
 }
 
-// Agent state comes from real events: working if it wrote the latest event during a build.
-function agentState(key) {
-  const log = S.current?.lastLog || [];
-  const mine = log.filter((e) => e.agent === key);
-  if (!mine.length) return 'idle';
-  if (S.busy && log[log.length - 1].agent === key) return 'working';
-  return mine[mine.length - 1].level === 'error' ? 'error' : 'done';
-}
-
-function agentTable() {
-  const rows = AGENTS.map((key) => {
-    const st = agentState(key);
-    const mine = (S.current?.lastLog || []).filter((e) => e.agent === key);
-    const last = mine[mine.length - 1];
-    const label = key === 'Deployment' && st === 'idle' ? 'not connected' : st;
-    return `<tr>
-      <td><span class="dot ${st}" style="display:inline-block;margin-right:8px"></span>${esc(key)}</td>
-      <td><span class="badge ${st === 'done' ? 'ready' : st === 'working' ? 'building' : st === 'error' ? 'failed' : ''}">${label}</span></td>
-      <td class="muted">${last ? esc(last.msg) : 'No activity yet'}</td>
-    </tr>`;
-  }).join('');
-  return `<table class="ptable"><thead><tr><th>Agent</th><th>Status</th><th>Last action</th></tr></thead><tbody>${rows}</tbody></table>`;
-}
-
 function renderRight() {
-  const p = S.current;
-  const log = p?.lastLog || [];
-  const working = AGENTS.filter((k) => agentState(k) === 'working').length;
-
-  const agents = AGENTS.map((key) => {
-    const st = agentState(key);
-    const label = key === 'Deployment' && st === 'idle' ? 'not connected' : st;
-    return `<div class="arow"><span class="dot ${st}"></span><span>${esc(key)}</span><span class="st">${label}</span></div>`;
+  const msgs = S.messages;
+  const lastAgent = msgs.length ? msgs[msgs.length - 1].agent : null;
+  const agents = AGENTS.map((a) => {
+    const has = msgs.some((m) => m.agent === a);
+    const st = S.busy && lastAgent === a ? 'working' : has ? 'done' : 'idle';
+    return `<div class="arow"><span class="dot ${st}"></span><span>${a}</span><span class="st">${st}</span></div>`;
   }).join('');
-
-  const activity = log.slice(-7).reverse()
-    .map((e) => `<div class="act"><b class="lvl-${esc(e.level)}">${esc(e.agent)}</b><span>${esc(e.msg)}</span><div class="muted" style="font-size:11px">${ago(e.at)}</div></div>`)
-    .join('') || '<div class="muted">No agent activity yet.</div>';
-
-  const recent = log.slice(-12).map((l) => `<span class="lvl-${esc(l.level)}">[${fmtTime(l.at)}] ${esc(l.msg)}</span>`).join('\n');
-  const logText = recent || (p ? 'No build output yet.' : 'Open or build a project to see logs.');
+  const activity = msgs.slice(-8).reverse().map((m) =>
+    `<div class="act"><b>${esc(m.agent)}</b><span>${esc(m.text.slice(0, 220))}</span><div class="muted" style="font-size:11px">${ago(m.at)}</div></div>`
+  ).join('') || '<div class="muted">No agent activity yet.</div>';
+  const logs = msgs.slice(-10).map((m) => `[${fmtTime(m.at)}] ${m.agent}: ${m.text.slice(0, 160)}`).join('\n')
+    || (S.current ? 'No output yet.' : 'Open a project to see logs.');
 
   $('#right').innerHTML = `
     <div class="card panel">
-      <h4>Live Agents <span style="color:var(--cyan);font-size:12px;font-weight:500">${S.busy ? '● ' + Math.max(1, working) + ' working' : ''}</span></h4>
+      <h4>Live Agents <span style="color:var(--cyan);font-size:12px;font-weight:500">${S.busy ? '● working' : ''}</span></h4>
       ${agents}
     </div>
     <div class="card panel">
@@ -699,42 +581,35 @@ function renderRight() {
       ${activity}
     </div>
     <div class="card panel">
-      <h4>Build & Deployment Logs</h4>
-      <pre class="logbox">${logText}</pre>
-      <div class="note-box muted">Deploy is not connected yet (Phase 5).</div>
+      <h4>Build &amp; Deployment Logs</h4>
+      <pre class="logbox">${esc(logs)}</pre>
+      <div class="muted" style="font-size:12px;margin-top:10px">Deploy is not connected yet (Phase 5).</div>
     </div>`;
 }
 
 /* ---------- Events ---------- */
 document.addEventListener('click', (e) => {
-  const el = e.target.closest('[data-action],[data-go],[data-open],[data-file],[data-tab],[data-device],[data-chip],[data-soon],[data-test],[data-toggle],[data-restore]');
+  const el = e.target.closest('[data-action],[data-go],[data-open],[data-file],[data-tab],[data-device],[data-chip],[data-soon],[data-restore]');
   if (!el) return;
   const d = el.dataset;
 
   if ('soon' in d) return toast('Not part of this build yet.', 'info');
-  if ('go' in d) return go(d.go);
+  if ('go' in d) return d.go === 'projects' ? goProjects() : goHome();
+  if ('open' in d) return openProject(d.open);
   if ('chip' in d) {
-    const ta = $('#prompt');
+    const ta = $('#heroText');
     if (ta) { ta.value = CHIPS[d.chip]; ta.focus(); }
     return;
   }
-  if ('open' in d) return openProject(d.open);
   if ('file' in d) return switchFile(d.file);
   if ('tab' in d) { S.tab = d.tab; return renderCenter(); }
   if ('device' in d) { S.device = d.device; return renderCenter(); }
-  if ('test' in d) return testProvider(d.test);
-  if ('toggle' in d) return toggleProvider(d.toggle);
   if ('restore' in d) return restore(d.restore);
 
   switch (d.action) {
-    case 'new':
-      S.current = null;
-      S.view = 'dashboard';
-      renderAll();
-      $('#prompt')?.focus();
-      break;
-    case 'build': return startBuild($('#prompt')?.value.trim(), 'new');
-    case 'change': return applyChange();
+    case 'new': goHome(); $('#heroText')?.focus(); break;
+    case 'start': return startProject($('#heroText')?.value);
+    case 'send': return sendMessage();
     case 'save': return saveFile();
     case 'refresh': return renderCenter();
     case 'deploy': return deploy();
@@ -743,17 +618,10 @@ document.addEventListener('click', (e) => {
   }
 });
 
-document.addEventListener('change', (e) => {
-  if (e.target.matches('[data-provider]')) {
-    S.provider = e.target.value;
-    document.querySelectorAll('[data-provider]').forEach((s) => { s.value = S.provider; });
-  }
-});
-
 document.addEventListener('input', (e) => {
   if (e.target.id === 'editor') {
     S.dirty = true;
-    const tag = document.querySelector('.editor .bar-row span span');
+    const tag = $('#dirtyTag');
     if (tag) tag.textContent = '● unsaved';
   }
 });
@@ -762,22 +630,22 @@ document.addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's' && S.current && S.tab === 'code') {
     e.preventDefault();
     saveFile();
+    return;
   }
-  if (e.key === 'Enter' && !e.shiftKey && e.target.id === 'prompt') {
+  if (e.key === 'Enter' && !e.shiftKey && e.target.id === 'heroText') {
     e.preventDefault();
-    startBuild($('#prompt').value.trim(), 'new');
+    startProject(e.target.value);
   }
-  if (e.key === 'Enter' && !e.shiftKey && e.target.id === 'change') {
+  if (e.key === 'Enter' && !e.shiftKey && e.target.id === 'composerText') {
     e.preventDefault();
-    applyChange();
+    sendMessage();
   }
 });
 
 /* ---------- Init ---------- */
 (async function init() {
-  await Promise.all([refreshList(), loadProviders()]);
-  if (S.projects.length) await openProject(S.projects[0].id);
-  else renderAll();
+  await refreshList();
+  renderAll();
 })();
 </script>
 </body>
