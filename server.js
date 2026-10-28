@@ -20,13 +20,14 @@ const KEITH_TIMEOUT_MS = Number(process.env.KEITH_TIMEOUT_MS) || 60_000;
 const MAX_URL = 7000;                      // Keith accepts GET query strings only
 const CHAT_URL = process.env.CHAT_URL || 'https://ch.at/v1/chat/completions';
 const CHAT_TIMEOUT_MS = Number(process.env.CHAT_TIMEOUT_MS) || 180_000;
-const MAX_ATTEMPTS = 2;                    // one try plus one repair
+const MAX_BUILD_ATTEMPTS = 2;              // one try plus one repair
+const HISTORY_MESSAGES = 8;                // chat lines sent to the model
 const MAX_FILE_CHARS = 200_000;
 const MAX_VERSIONS = 10;
 const FILE_PATH = 'public/index.html';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const FILE_PATH_RE = /^[A-Za-z0-9_][A-Za-z0-9._/-]{0,119}$/;
-const GREETING = /^\s*(hi|hello|hey|yo|sup|hola|test|thanks|thank you|ok|okay)\s*[!.?]*\s*$/i;
+const GREETING = /^\s*(hi|hello|hey|yo|hola|thanks|thank you|ok|okay)([\s,!.?]+(bro|there|man|team))?[\s!.?]*$/i;
 const STARTER_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -37,14 +38,21 @@ const STARTER_HTML = `<!DOCTYPE html>
 </head>
 <body><p>Send a message to the Builder to create this app.</p></body>
 </html>`;
+
 const BUILDER_RULES =
   'Write one complete HTML file with inline CSS and classic inline JavaScript. Use no external libraries, no ' +
   'imports, and no network calls. Make it responsive and fully working, with no placeholder buttons. Reply with ' +
   'only one ```html code block containing the whole document, ending with </html>.';
 
+const routerRules = (hasApp) => [
+  'You are the assistant in BeraForge AI, a chat tool where people build small web apps.',
+  hasApp ? 'The project already has an app.' : 'The project has no app yet.',
+  'If the user asks you to create, build, change, fix, style or add something to a web page or app, reply with one line that starts with BUILD: followed by a short summary of the work.',
+  'Otherwise, reply conversationally in one to three short sentences. Do not write code in this reply.',
+].join(' ');
+
 const safePath = (p) => typeof p === 'string' && FILE_PATH_RE.test(p) && !p.includes('..');
 const isUuid = (s) => UUID_RE.test(String(s));
-const now = () => new Date().toISOString();
 
 // ---------- Database ----------
 const pool = new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: true }, max: 5 });
@@ -52,7 +60,7 @@ const q = (text, params) => pool.query(text, params);
 
 // ---------- Live events ----------
 const streams = new Map(); // projectId -> Set of SSE responses
-const running = new Set(); // projects with a build in progress
+const running = new Set(); // projects with a turn in progress
 
 function publish(pid, type, data) {
   const set = streams.get(pid);
@@ -62,6 +70,10 @@ function publish(pid, type, data) {
 }
 
 const toMsg = (r) => ({ id: Number(r.id), agent: r.agent, text: r.display, at: r.created_at });
+
+async function currentStatus(pid) {
+  return (await q('SELECT status FROM projects WHERE id=$1', [pid])).rows[0]?.status || 'draft';
+}
 
 async function setStatus(pid, status) {
   await q('UPDATE projects SET status=$2, updated_at=now() WHERE id=$1', [pid, status]);
@@ -79,7 +91,6 @@ async function save(pid, { role, agent, display, content = '' }) {
 const say = (pid, agent, text) => save(pid, { role: 'system', agent, display: text });
 
 async function snapshot(pid) {
-  const st = await q('SELECT status FROM projects WHERE id=$1', [pid]);
   const msgs = await q(
     `SELECT id, agent, display, created_at FROM (
        SELECT id, agent, display, created_at FROM messages
@@ -87,11 +98,23 @@ async function snapshot(pid) {
        ORDER BY id DESC LIMIT 200) t ORDER BY id`,
     [pid]
   );
-  return { status: st.rows[0]?.status || 'draft', messages: msgs.rows.map(toMsg) };
+  return { status: await currentStatus(pid), messages: msgs.rows.map(toMsg) };
+}
+
+// Chat lines for the model: only what the user and the assistant said.
+async function recentChat(pid) {
+  const r = await q(
+    `SELECT agent, display FROM (
+       SELECT id, agent, display FROM messages
+       WHERE project_id=$1 AND agent IN ('You','Assistant')
+       ORDER BY id DESC LIMIT $2) t ORDER BY id`,
+    [pid, HISTORY_MESSAGES]
+  );
+  return r.rows.map((m) => ({ role: m.agent === 'You' ? 'user' : 'assistant', content: String(m.display).slice(0, 400) }));
 }
 
 // ---------- Model providers ----------
-// Reads the reply text from a Keith response. Keith wraps replies as { status, creator, result }.
+// Keith replies look like { status, creator, result }.
 function keithText(raw) {
   let j;
   try { j = JSON.parse(raw); } catch { return raw; }
@@ -136,18 +159,14 @@ async function askChAt(messages) {
   return { text, via: 'ch.at' };
 }
 
-// Keith first. ch.at only when every Keith endpoint fails or the request is too long for a GET URL.
-async function generate(request, current) {
-  const prompt = current
-    ? `${BUILDER_RULES} Modify this existing file and keep everything the request does not change. Request: ${request}. Existing file: ${current}`
-    : `${BUILDER_RULES} Request: ${request}`;
+// Keith first. ch.at when every Keith endpoint fails or the prompt is too long for a GET URL.
+async function ask({ system, history = [], user }) {
+  const transcript = history.map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`);
+  const keithPrompt = [system, ...transcript, `User: ${user}`, 'Assistant:'].join('\n');
   try {
-    return await askKeith(prompt);
+    return await askKeith(keithPrompt);
   } catch (keithErr) {
-    const messages = [
-      { role: 'system', content: BUILDER_RULES },
-      { role: 'user', content: current ? `${request}\n\nExisting file:\n${current}` : request },
-    ];
+    const messages = [{ role: 'system', content: system }, ...history, { role: 'user', content: user }];
     try {
       return await askChAt(messages);
     } catch (chatErr) {
@@ -234,47 +253,87 @@ async function replaceFiles(pid, files) {
   }
 }
 
-// ---------- Build ----------
-async function runBuild(pid, request, current) {
+// ---------- Build (returns true when the file was saved) ----------
+async function buildApp(pid, request, current) {
+  await say(pid, 'Builder', current ? 'Updating public/index.html…' : 'Writing public/index.html…');
+
+  let html = null;
+  let feedback = '';
+  for (let attempt = 1; attempt <= MAX_BUILD_ATTEMPTS && !html; attempt++) {
+    let prompt = request;
+    if (current) prompt += `\n\nModify this existing file and keep everything the request does not change. Existing file:\n${current}`;
+    if (feedback) prompt += `\n\nThe previous attempt had these problems, fix them: ${feedback}`;
+
+    const reply = await ask({ system: BUILDER_RULES, user: prompt });
+    await say(pid, 'Builder', `Reply from ${reply.via}`);
+
+    const candidate = extractHtml(reply.text);
+    const errors = candidate ? qaHtml(candidate) : ['the reply had no complete HTML document (it may have been cut off)'];
+    if (!errors.length) {
+      html = candidate;
+      await say(pid, 'QA', 'Checks passed.');
+    } else {
+      feedback = errors.join('; ').slice(0, 300);
+      await say(pid, 'QA', `Problems: ${feedback}`);
+      if (attempt < MAX_BUILD_ATTEMPTS) await say(pid, 'Builder', 'Trying once more with the fixes…');
+    }
+  }
+
+  if (!html) {
+    await say(pid, 'Orchestrator', 'Not saved. Your previous file is unchanged. Try again with a shorter request.');
+    return false;
+  }
+
+  await snapshotFiles(pid, request);
+  await upsertFile(pid, FILE_PATH, html);
+  await say(pid, 'Builder', `Saved ${FILE_PATH} (${html.length} chars). The preview is updated.`);
+  // Summary line goes into chat memory so later messages know what exists
+  await save(pid, {
+    role: 'assistant', agent: 'Assistant',
+    display: `Done. I ${current ? 'updated' : 'built'} the app: ${request.slice(0, 120)}.`, content: '',
+  });
+  return true;
+}
+
+// ---------- One user message ----------
+async function runTurn(pid, text) {
   running.add(pid);
-  let ok = false;
+  let status = 'draft';
   try {
+    const prior = await currentStatus(pid);
+    status = prior === 'working' ? 'draft' : prior;
     await setStatus(pid, 'working');
-    await say(pid, 'Builder', current ? 'Updating public/index.html…' : 'Writing public/index.html…');
 
-    let html = null;
-    let feedback = '';
-    for (let attempt = 1; attempt <= MAX_ATTEMPTS && !html; attempt++) {
-      const req = feedback ? `${request} (The previous attempt had these problems, fix them: ${feedback})` : request;
-      const reply = await generate(req, current);
-      await say(pid, 'Builder', `Reply from ${reply.via}`);
+    const current = await currentFile(pid);
+    const hasApp = Boolean(current && current !== STARTER_HTML);
 
-      const candidate = extractHtml(reply.text);
-      const errors = candidate ? qaHtml(candidate) : ['the reply had no complete HTML document (it may have been cut off)'];
-      if (!errors.length) {
-        html = candidate;
-        await say(pid, 'QA', 'Checks passed.');
-      } else {
-        feedback = errors.join('; ').slice(0, 300);
-        await say(pid, 'QA', `Problems: ${feedback}`);
-        if (attempt < MAX_ATTEMPTS) await say(pid, 'Builder', 'Trying once more with the fixes…');
-      }
+    // Chat history without the message just saved, which is sent separately
+    const history = await recentChat(pid);
+    const last = history[history.length - 1];
+    if (last && last.role === 'user' && last.content === text.slice(0, 400)) history.pop();
+
+    let route;
+    try {
+      route = await ask({ system: routerRules(hasApp), history, user: text });
+    } catch (err) {
+      await say(pid, 'Orchestrator', `I could not reach the model just now. Please try again. (${err.message.slice(0, 160)})`);
+      return;
     }
 
-    if (html) {
-      await snapshotFiles(pid, request);
-      await upsertFile(pid, FILE_PATH, html);
-      await say(pid, 'Builder', `Saved ${FILE_PATH} (${html.length} chars). The preview is updated.`);
-      ok = true;
+    const out = route.text.trim();
+    if (/^BUILD:/i.test(out) || /<!doctype|<html/i.test(out)) {
+      const built = await buildApp(pid, text, hasApp ? current : null);
+      status = built ? 'ready' : (hasApp ? 'ready' : 'failed');
     } else {
-      await say(pid, 'Orchestrator', 'Not saved. Your previous file is unchanged. Try again or make the request shorter.');
+      const reply = out.replace(/```[\s\S]*?```/g, '').trim().slice(0, 1500) || 'Tell me what to build, or ask about the app you have.';
+      await save(pid, { role: 'assistant', agent: 'Assistant', display: reply, content: '' });
     }
   } catch (err) {
-    await say(pid, 'Orchestrator', `Build stopped: ${err.message}`).catch(() => {});
+    await say(pid, 'Orchestrator', `Stopped: ${err.message.slice(0, 200)}`).catch(() => {});
+    status = status === 'working' ? 'failed' : status;
   } finally {
     running.delete(pid);
-    await setStatus(pid, ok ? 'ready' : 'failed').catch((e) => console.error(e.message));
-    publish(pid, 'done', { ok });
+    await setStatus(pid, status).catch((e) => console.error(e.message));
   }
 }
 
@@ -346,7 +405,7 @@ app.patch('/api/projects/:id', requireProject, h(async (req, res) => {
 }));
 
 app.delete('/api/projects/:id', requireProject, h(async (req, res) => {
-  if (running.has(req.project.id)) return res.status(409).json({ error: 'Wait for the build to finish first' });
+  if (running.has(req.project.id)) return res.status(409).json({ error: 'Wait for the Builder to finish first' });
   await q('DELETE FROM projects WHERE id=$1', [req.project.id]);
   res.status(204).end();
 }));
@@ -371,31 +430,26 @@ app.get('/api/projects/:id/events', requireProject, h(async (req, res) => {
   res.write(`event: snapshot\ndata: ${JSON.stringify(snap)}\n\n`);
 }));
 
-// Send a message. Greetings get a direct reply and never touch the file.
+// Send a message. Every message is routed first: chat reply, or a build.
 app.post('/api/projects/:id/messages', requireProject, h(async (req, res) => {
   const pid = req.project.id;
   if (running.has(pid)) return res.status(409).json({ error: 'The Builder is still working on this project' });
   const text = String(req.body?.text ?? '').trim().slice(0, 1500);
   if (!text) return res.status(400).json({ error: 'Message is empty' });
 
-  await save(pid, { role: 'user', agent: 'You', display: text, content: text });
+  await save(pid, { role: 'user', agent: 'You', display: text, content: '' });
 
   if (GREETING.test(text)) {
-    await say(pid, 'Orchestrator', 'Hi. Describe the app or the change you want, and I will build it.');
-    res.status(202).json({ started: false });
-    // Send the current status after the response, so the client clears its busy state
-    setTimeout(async () => {
-      const st = (await q('SELECT status FROM projects WHERE id=$1', [pid])).rows[0]?.status || 'draft';
-      publish(pid, 'status', { status: st });
-    }, 300);
-    return;
+    await save(pid, {
+      role: 'assistant', agent: 'Assistant',
+      display: 'Hi! Tell me what to build, or ask about the app you have.', content: '',
+    });
+    publish(pid, 'status', { status: await currentStatus(pid) });
+    return res.status(202).json({ started: false });
   }
 
-  // Once the app exists, each message edits it. Start a new project for a different app.
-  const existing = await currentFile(pid);
-  const current = existing && existing !== STARTER_HTML ? existing : null;
   res.status(202).json({ started: true });
-  runBuild(pid, text, current).catch((err) => console.error('build crashed:', err));
+  runTurn(pid, text).catch((err) => console.error('turn crashed:', err));
 }));
 
 // Hand edits from the Code tab
