@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BeraForge AI - by Bera Tech</title>
+<style>
+:root{--bg:#07080D;--panel:#0D1019;--panel-2:#121726;--border:#1E2535;--border-2:#2A3349;--violet:#8B5CF6;--cyan:#22D3EE;--text:#EEF0F7;--muted:#8B93A7;--ok:#34D399;--warn:#FBBF24;--err:#F87171}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font:14px/1.5 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button,input,textarea,select{font:inherit;color:inherit}
+a{color:var(--cyan);text-decoration:none}
+.muted{color:var(--muted)}
+.gradtext{background:linear-gradient(90deg,var(--violet),var(--cyan));-webkit-background-clip:text;background-clip:text;color:transparent}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:14px}
+.btn{background:transparent;border:1px solid var(--border-2);border-radius:9px;padding:7px 12px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--violet)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+select.btn{background:var(--panel-2)}
+.btn-grad{background:linear-gradient(90deg,var(--violet),#6D5BF0);border:0;color:#fff;font-weight:600;border-radius:9px;padding:9px 16px;cursor:pointer}
+.btn-grad:disabled{opacity:.5;cursor:not-allowed}
+.badge{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--border-2);color:var(--muted);white-space:nowrap}
+.badge.ready,.badge.verified,.badge.done{color:var(--ok);border-color:rgba(52,211,153,.4)}
+.badge.failed,.badge.error{color:var(--err);border-color:rgba(248,113,113,.4)}
+.badge.building,.badge.working{color:var(--cyan);border-color:rgba(34,211,238,.4)}
+.badge.untested{color:var(--warn);border-color:rgba(251,191,36,.35)}
+.spacer{flex:1}
+.row-between{display:flex;justify-content:space-between;align-items:center;gap:8px}
+
+.app{display:grid;grid-template-columns:230px minmax(0,1fr) 310px;grid-template-rows:64px minmax(0,1fr);height:100vh}
+header{grid-column:1/-1;display:flex;align-items:center;gap:18px;padding:0 20px;border-bottom:1px solid var(--border)}
+.brand{display:flex;align-items:center;gap:10px}
+.logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--violet),var(--cyan));display:grid;place-items:center;font-weight:800;color:#fff}
+.brand .name{font-size:19px;font-weight:700;line-height:1}
+.brand small{display:block;font-size:10px;letter-spacing:.12em;color:var(--muted);margin-top:3px}
+.topnav{display:flex;gap:20px;margin-left:24px}
+.topnav a{color:var(--muted);cursor:pointer}
+.topnav a:hover,.topnav a.on{color:var(--text)}
+.upgrade{border-color:var(--violet);color:#C4B5FD}
+.bell{background:none;border:0;cursor:pointer;font-size:17px;padding:4px}
+.avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--violet),var(--cyan));display:grid;place-items:center;font-weight:700}
+
+.side{border-right:1px solid var(--border);padding:16px;display:flex;flex-direction:column;gap:14px;overflow:auto}
+.new{width:100%;padding:12px;font-size:15px}
+.sidenav{display:flex;flex-direction:column;gap:2px}
+.sidenav a{color:var(--muted);padding:10px 12px;border-radius:9px;cursor:pointer}
+.sidenav a:hover{color:var(--text);background:var(--panel-2)}
+.sidenav a.on{color:var(--text);background:var(--panel-2);box-shadow:inset 2px 0 0 var(--violet)}
+.plan{padding:14px}
+.meter{display:flex;justify-content:space-between;font-size:13px;margin-top:12px}
+.bar{height:6px;border-radius:6px;background:var(--panel-2);overflow:hidden;margin-top:7px}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--violet),var(--cyan))}
+.promo{padding:14px;border-color:rgba(139,92,246,.35)}
+.promo h4{margin:0 0 6px;font-size:15px}
+.promo p{margin:0 0 10px;color:var(--muted);font-size:13px}
+.sidebrand{margin-top:auto}
+.sidebrand small{display:block;color:var(--muted);font-size:11px;margin-top:6px}
+
+.main{overflow:auto;padding:18px;display:flex;flex-direction:column;gap:16px;min-width:0}
+.hero{padding:22px;background:radial-gradient(900px 260px at 85% -30%,rgba(139,92,246,.22),transparent),var(--panel)}
+.hero h1{margin:0;font-size:22px;font-weight:700}
+.hero p{margin:4px 0 14px;color:var(--muted)}
+.prompt{display:flex;gap:10px;align-items:flex-end;border:1px solid var(--border-2);border-radius:12px;padding:10px;background:var(--bg)}
+.prompt textarea{flex:1;background:none;border:0;outline:none;resize:none;min-height:44px;max-height:140px}
+.stack{display:flex;flex-direction:column;gap:6px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.chip{background:var(--panel-2);border:1px solid var(--border-2);border-radius:999px;padding:4px 12px;font-size:12px;color:var(--muted);cursor:pointer}
+.chip:hover{color:var(--text);border-color:var(--cyan)}
+
+.ws{display:flex;flex-direction:column;min-height:600px;overflow:hidden}
+.ws-head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.ws-title{font-weight:600;font-size:15px;display:flex;gap:8px;align-items:center}
+.change{display:flex;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);align-items:center;flex-wrap:wrap}
+.change input{flex:1;min-width:180px;background:var(--bg);border:1px solid var(--border-2);border-radius:9px;padding:8px 10px;outline:none}
+.change input:focus{border-color:var(--violet)}
+.tabs{display:flex;gap:4px;padding:0 10px;border-bottom:1px solid var(--border);overflow-x:auto}
+.tab{background:none;border:0;padding:12px 10px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+.tab.on{color:var(--text);border-bottom-color:var(--violet)}
+.split{display:grid;grid-template-columns:200px minmax(0,1fr) minmax(0,1fr);flex:1;min-height:460px}
+.explorer{border-right:1px solid var(--border);padding:10px;display:flex;flex-direction:column;gap:2px;overflow:auto}
+.label{font-size:11px;letter-spacing:.1em;color:var(--muted);margin:4px 6px 8px}
+.file{background:none;border:0;text-align:left;padding:7px 8px;border-radius:7px;color:var(--muted);cursor:pointer;font-size:13px;word-break:break-all}
+.file.on,.file:hover{background:var(--panel-2);color:var(--text)}
+.editor{display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--border)}
+.bar-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border);color:var(--muted);font-size:12px}
+#editor{flex:1;min-height:360px;background:#090B12;border:0;outline:none;resize:none;padding:14px;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#D6DAE8;tab-size:2;white-space:pre}
+.pv-col{display:flex;flex-direction:column;min-width:0}
+.pv-col iframe{flex:1;width:100%;border:0;background:#fff;min-height:400px}
+.preview-full{display:flex;flex-direction:column;flex:1}
+.preview-bar{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.seg{display:flex;border:1px solid var(--border-2);border-radius:9px;overflow:hidden}
+.seg button{background:none;border:0;padding:6px 12px;color:var(--muted);cursor:pointer}
+.seg button.on{background:var(--panel-2);color:var(--text)}
+.frame-wrap{flex:1;display:flex;justify-content:center;background:#05060A;padding:12px;min-height:440px;overflow:auto}
+#frame{background:#fff;border:0;border-radius:8px;height:100%;min-height:420px;max-width:100%;transition:width .2s}
+.term{margin:0;padding:14px;flex:1;overflow:auto;font:12.5px/1.7 ui-monospace,Menlo,Consolas,monospace;color:#B7BFD3;background:#05060A;white-space:pre-wrap;min-height:420px}
+.lvl-error{color:var(--err)}
+.lvl-warn{color:var(--warn)}
+.pad{padding:14px}
+.versions{display:flex;flex-direction:column;gap:8px;padding:14px}
+.ver{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:10px}
+.ptable{width:100%;border-collapse:collapse;font-size:13px}
+.ptable th,.ptable td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+.ptable th{color:var(--muted);font-weight:500;font-size:12px}
+.preview-text{font-size:12px;margin-top:4px;white-space:pre-wrap;word-break:break-word}
+.empty{padding:28px;text-align:center;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.pcard{padding:16px;cursor:pointer}
+.pcard:hover{border-color:var(--violet)}
+.pcard h3{margin:0 0 6px;font-size:15px}
+.pcard p{margin:0 0 10px;color:var(--muted);font-size:13px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+.right{border-left:1px solid var(--border);padding:16px;display:flex;flex-direction:column;gap:14px;overflow:auto}
+.panel{padding:14px}
+.panel h4{margin:0 0 10px;font-size:14px;display:flex;justify-content:space-between;align-items:center}
+.arow{display:flex;align-items:center;gap:10px;padding:6px 0;font-size:13px}
+.arow .st{margin-left:auto;font-size:12px;color:var(--muted)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex:none}
+.dot.working{background:var(--cyan);box-shadow:0 0 8px var(--cyan);animation:pulse 1.2s infinite}
+.dot.done{background:var(--ok)}
+.dot.error{background:var(--err)}
+@keyframes pulse{50%{opacity:.35}}
+.act{padding:8px 0;border-bottom:1px solid var(--border);font-size:12.5px}
+.act b{display:block;font-weight:600}
+.act span{color:var(--muted)}
+.logbox{margin:0;background:#05060A;border:1px solid var(--border);border-radius:10px;padding:10px;font:11.5px/1.6 ui-monospace,Menlo,Consolas,monospace;color:#B7BFD3;max-height:220px;overflow:auto;white-space:pre-wrap;word-break:break-word}
+.note-box{padding:12px;border-radius:12px;border:1px solid var(--border-2);font-size:13px;margin-top:10px}
+
+.toasts{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:8px;z-index:50}
+.toast{background:var(--panel-2);border:1px solid var(--border-2);border-left:3px solid var(--cyan);padding:10px 14px;border-radius:10px;max-width:380px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.toast.ok{border-left-color:var(--ok)}
+.toast.error{border-left-color:var(--err)}
+.toast.warn{border-left-color:var(--warn)}
+
+@media (max-width:1280px){.app{grid-template-columns:210px minmax(0,1fr) 270px}.split{grid-template-columns:160px minmax(0,1fr)}.pv-col{display:none}}
+@media (max-width:980px){.app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}.side,.right,.topnav,.upgrade{display:none}header{padding:0 12px;gap:10px}.split{grid-template-columns:1fr}.explorer{flex-direction:row;overflow:auto;border-right:0;border-bottom:1px solid var(--border)}.label{display:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <div class="logo">B</div>
+      <div><div class="name"><span class="gradtext">BeraForge</span> AI</div><small>BY BERA TECH</small></div>
+    </div>
+    <nav class="topnav">
+      <a data-go="dashboard">Home</a>
+      <a data-go="projects">Projects</a>
+      <a data-soon>Templates</a>
+      <a data-soon>Docs</a>
+      <a data-soon>Community</a>
+    </nav>
+    <div class="spacer"></div>
+    <button class="btn upgrade" data-soon>✦ Upgrade</button>
+    <button class="bell" data-soon title="Notifications">🔔</button>
+    <div class="avatar">B</div>
+  </header>
+
+  <aside class="side">
+    <button class="btn-grad new" data-action="new">+ New Project</button>
+    <nav class="sidenav">
+      <a data-go="dashboard">▦ Dashboard</a>
+      <a data-go="projects">▤ My Projects</a>
+      <a data-soon>✧ AI Assistant</a>
+      <a data-soon>▣ Templates</a>
+      <a data-go="deployments">⬆ Deployments</a>
+      <a data-go="providers">⚙ API Providers</a>
+      <a data-soon>⚙ Settings</a>
+    </nav>
+    <div class="card plan" id="planBox"></div>
+    <div class="card promo">
+      <h4>Build faster with <span class="gradtext">BeraForge Pro</span></h4>
+      <p>More AI power, higher limits, priority support.</p>
+      <button class="btn" data-soon style="width:100%;border-color:var(--violet);color:#C4B5FD">View Plans</button>
+    </div>
+    <div class="sidebrand">
+      <div><span class="gradtext" style="font-weight:700">BeraForge AI</span></div>
+      <small>BY BERA TECH</small>
+      <small>Ideas → Code → Live</small>
+    </div>
+  </aside>
+
+  <main class="main">
+    <section class="card hero" id="hero"></section>
+    <section id="content" style="display:flex;flex-direction:column;gap:12px;min-height:0"></section>
+  </main>
+
+  <aside class="right" id="right"></aside>
+</div>
+<div class="toasts" id="toasts"></div>
+
+<script>
+const PLAN_LIMIT = 10;
+const AI_LIMIT = 1000;
+const CHIPS = {
+  'Full Stack App': 'Full-stack todo app with a clean UI, a database for tasks and a settings panel',
+  'Website': 'Modern one-page marketing website for a software startup with a hero, features and a contact form that saves messages',
+  'API': 'REST API explorer page where I can send requests to any URL and view formatted JSON responses',
+  'Mobile App': 'Mobile-first habit tracker with daily check-ins and streak counters saved in a database',
+  'Dashboard': 'Analytics dashboard with KPI cards, a line chart and a recent activity table',
+  'Blog': 'Minimal blog with a post list, reading view and a search box, with posts stored in a database',
+  'E-commerce': 'E-commerce storefront with a product grid, cart drawer and checkout summary'
+};
+const AGENTS = ['Orchestrator', 'API Integration', 'Database', 'Backend', 'Frontend', 'QA', 'Integration', 'Deployment'];
+const STATUS_LABEL = { draft: 'Draft', building: 'Building', ready: 'Ready', failed: 'Failed' };
+
+const S = {
+  projects: [], providers: [], tests: {}, current: null,
+  view: 'dashboard', file: 'public/index.html', tab: 'code',
+  busy: false, dirty: false, device: 'desktop', provider: 'ai_gpt'
+};
+
+const $ = (sel) => document.querySelector(sel);
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtTime = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+const ago = (iso) => {
+  const s = (Date.now() - new Date(iso)) / 1000;
+  if (s < 60) return 'just now';
+  if (s < 3600) return Math.floor(s / 60) + 'm ago';
+  if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+  return Math.floor(s / 86400) + 'd ago';
+};
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const chatOptions = () => S.providers.filter((p) => p.kind === 'chat' && p.enabled);
+
+async function api(path, { method = 'GET', body } = {}) {
+  const opts = { method, headers: {} };
+  if (body !== undefined) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  const res = await fetch(path, opts);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.error || `Request failed (${res.status})`);
+    err.data = data;
+    throw err;
+  }
+  return data;
+}
+
+function toast(msg, kind = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast ${kind}`;
+  el.textContent = msg;
+  $('#toasts').appendChild(el);
+  setTimeout(() => el.remove(), 4500);
+}
+
+async function refreshList() {
+  try { S.projects = (await api('/api/projects')).projects; }
+  catch (e) { toast(e.message, 'error'); }
+}
+
+async function loadProviders() {
+  try { S.providers = (await api('/api/providers')).providers; }
+  catch (e) { toast(e.message, 'error'); }
+  if (!chatOptions().some((p) => p.id === S.provider)) S.provider = chatOptions()[0]?.id || 'ai_gpt';
+}
+
+async function loadCurrent(id) {
+  S.current = await api(`/api/projects/${encodeURIComponent(id)}`);
+  if (!S.current.files[S.file]) S.file = Object.keys(S.current.files)[0] || 'public/index.html';
+}
+
+async function openProject(id) {
+  try {
+    await loadCurrent(id);
+    S.view = 'dashboard';
+    S.tab = 'code';
+    S.dirty = false;
+    renderAll();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function go(view) {
+  if (view === 'deployments') {
+    if (!S.current) return toast('Open a project to see its deployments.', 'info');
+    S.view = 'dashboard';
+    S.tab = 'logs';
+    return renderAll();
+  }
+  if (view === 'projects') {
+    S.current = null;
+    S.view = 'projects';
+    return refreshList().then(renderAll);
+  }
+  if (view === 'providers') {
+    S.view = 'providers';
+    return loadProviders().then(renderAll);
+  }
+  S.view = 'dashboard';
+  refreshList().then(renderAll);
+}
+
+// Subscribes to a build's live events and resolves when it finishes.
+function watch(id) {
+  return new Promise((resolve) => {
+    const es = new EventSource(`/api/projects/${encodeURIComponent(id)}/events`);
+    let seen = 0;
+    const timeout = setTimeout(() => finish(false), 10 * 60 * 1000);
+    const finish = (ok) => { clearTimeout(timeout); es.close(); resolve(ok); };
+    const mine = () => S.current?.id === id;
+
+    es.addEventListener('snapshot', (e) => {
+      const d = JSON.parse(e.data);
+      seen = Math.max(0, ...d.log.map((x) => x.id));
+      if (mine()) { S.current.lastLog = d.log; S.current.status = d.status; }
+      renderLive();
+      if (d.status !== 'building') finish(d.status === 'ready');
+    });
+    es.addEventListener('log', (e) => {
+      const d = JSON.parse(e.data);
+      if (d.id <= seen) return;
+      seen = d.id;
+      if (mine()) S.current.lastLog.push(d);
+      renderLive();
+    });
+    es.addEventListener('status', (e) => {
+      if (mine()) { S.current.status = JSON.parse(e.data).status; renderLive(); }
+    });
+    es.addEventListener('done', (e) => finish(JSON.parse(e.data).ok));
+  });
+}
+
+async function startBuild(text, mode = 'new') {
+  if (!text) return toast('Describe the app or change first.', 'warn');
+  if (S.busy) return;
+  S.busy = true;
+  renderAll();
+  try {
+    if (mode === 'new' || !S.current) {
+      S.current = await api('/api/projects', { method: 'POST', body: { prompt: text } });
+      S.file = 'public/index.html';
+      S.tab = 'code';
+      S.view = 'dashboard';
+    }
+    const id = S.current.id;
+    await api(`/api/projects/${encodeURIComponent(id)}/build`, {
+      method: 'POST',
+      body: { prompt: text, provider: S.provider, mode: mode === 'edit' ? 'edit' : 'new' }
+    });
+    renderAll();
+    const ok = await watch(id);
+    if (S.current?.id === id) await loadCurrent(id);
+    toast(ok ? 'Build saved. Open the Preview tab.' : 'Build failed. Check the Logs tab.', ok ? 'ok' : 'error');
+  } catch (e) {
+    toast(e.message, 'error');
+  } finally {
+    S.busy = false;
+    await refreshList();
+    renderAll();
+  }
+}
+
+function applyChange() {
+  const text = $('#change')?.value.trim();
+  if (!text) return toast('Describe the change first.', 'warn');
+  startBuild(text, 'edit');
+}
+
+async function testProvider(id) {
+  S.tests[id] = { pending: true };
+  renderCenter();
+  try { S.tests[id] = await api(`/api/providers/${encodeURIComponent(id)}/test`, { method: 'POST' }); }
+  catch (e) { S.tests[id] = { ok: false, error: e.message }; }
+  await loadProviders();
+  renderCenter();
+  renderSide();
+}
+
+async function toggleProvider(id) {
+  const p = S.providers.find((x) => x.id === id);
+  if (!p) return;
+  try {
+    await api(`/api/providers/${encodeURIComponent(id)}`, { method: 'PATCH', body: { enabled: !p.enabled } });
+    await loadProviders();
+    renderAll();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function restore(versionId) {
+  try {
+    S.current = await api(`/api/projects/${encodeURIComponent(S.current.id)}/restore/${encodeURIComponent(versionId)}`, { method: 'POST' });
+    S.dirty = false;
+    toast('Checkpoint restored', 'ok');
+    renderAll();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deploy() {
+  try {
+    await api(`/api/projects/${encodeURIComponent(S.current.id)}/deploy`, { method: 'POST' });
+  } catch (e) {
+    toast(e.message, 'warn');
+  }
+}
+
+async function saveFile() {
+  const p = S.current;
+  if (!p) return;
+  const content = $('#editor')?.value ?? '';
+  try {
+    await api(`/api/projects/${encodeURIComponent(p.id)}/file`, { method: 'PUT', body: { path: S.file, content } });
+    p.files[S.file] = content;
+    S.dirty = false;
+    toast(`Saved ${S.file}`, 'ok');
+    renderCenter();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function switchFile(name) {
+  if (S.dirty && !confirm('Discard unsaved changes?')) return;
+  S.file = name;
+  S.dirty = false;
+  renderCenter();
+}
+
+async function renameProject() {
+  const name = window.prompt('Project name', S.current.name);
+  if (!name || !name.trim()) return;
+  try {
+    S.current = await api(`/api/projects/${encodeURIComponent(S.current.id)}`, { method: 'PATCH', body: { name: name.trim() } });
+    await refreshList();
+    renderAll();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deleteProject() {
+  if (!confirm(`Delete "${S.current.name}"? This cannot be undone.`)) return;
+  try {
+    await api(`/api/projects/${encodeURIComponent(S.current.id)}`, { method: 'DELETE' });
+    S.current = null;
+    toast('Project deleted', 'ok');
+    await refreshList();
+    if (S.projects.length) await openProject(S.projects[0].id);
+    else renderAll();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+/* ---------- Rendering ---------- */
+function renderAll() {
+  renderSide();
+  renderHero();
+  renderCenter();
+  renderRight();
+  document.querySelectorAll('.topnav a[data-go], .sidenav a[data-go]').forEach((a) => {
+    a.classList.toggle('on', a.dataset.go === S.view);
+  });
+}
+
+// Updates the live parts only, so unsaved editor text survives while a build runs.
+function renderLive() {
+  renderRight();
+  const p = S.current;
+  if (!p) return;
+  const st = S.busy ? 'building' : p.status;
+  const badge = $('#wsStatus');
+  if (badge) { badge.className = `badge ${st}`; badge.textContent = STATUS_LABEL[st] || st; }
+  const pre = $('#logPre');
+  if (pre) { pre.innerHTML = logLines(p); pre.scrollTop = pre.scrollHeight; }
+  const agentsBox = $('#agentsBox');
+  if (agentsBox) agentsBox.innerHTML = agentTable();
+}
+
+function renderSide() {
+  const aiUsed = S.providers.reduce((sum, p) => sum + (p.calls || 0), 0);
+  const aiPct = Math.min(100, (aiUsed / AI_LIMIT) * 100);
+  const projPct = Math.min(100, (S.projects.length / PLAN_LIMIT) * 100);
+  $('#planBox').innerHTML = `
+    <div class="row-between"><b>Free Plan</b><span class="badge" data-soon>Upgrade</span></div>
+    <div class="meter"><span class="muted">AI Requests</span><span>${aiUsed} / ${AI_LIMIT.toLocaleString()}</span></div>
+    <div class="bar"><i style="width:${aiPct}%"></i></div>
+    <div class="meter"><span class="muted">Projects</span><span>${S.projects.length} / ${PLAN_LIMIT}</span></div>
+    <div class="bar"><i style="width:${projPct}%"></i></div>`;
+}
+
+function renderHero() {
+  const el = $('#hero');
+  const keep = $('#prompt')?.value ?? '';
+  if (S.view !== 'dashboard') { el.style.display = 'none'; el.innerHTML = ''; return; }
+  el.style.display = '';
+  el.innerHTML = `
+    <h1>✦ Build Your Next Application with <span class="gradtext">AI</span></h1>
+    <p>Describe your idea. The agents plan, write the files, check them and save them to your project.</p>
+    <div class="prompt">
+      <textarea id="prompt" rows="2" placeholder="Create a modern e-commerce website with a product list and a checkout form…"></textarea>
+      <div class="stack">
+        ${providerSelect()}
+        <button class="btn-grad" data-action="build" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Building…' : '✦ Build'}</button>
+      </div>
+    </div>
+    <div class="chips">${Object.keys(CHIPS).map((k) => `<span class="chip" data-chip="${esc(k)}">${esc(k)}</span>`).join('')}</div>`;
+  $('#prompt').value = keep;
+}
+
+function providerSelect() {
+  return `<select class="btn" data-provider title="Chat model used for this build">${chatOptions().map((p) =>
+    `<option value="${esc(p.id)}" ${p.id === S.provider ? 'selected' : ''}>${esc(p.path)}</option>`).join('')}</select>`;
+}
+
+function renderCenter() {
+  const el = $('#content');
+  if (S.view === 'providers') { el.innerHTML = providersHtml(); return; }
+  if (S.view === 'projects') { el.innerHTML = projectsHtml(); return; }
+  if (S.current) { el.innerHTML = workspaceHtml(); return; }
+  el.innerHTML = '<div class="card empty">No project open. Describe an app above and press Build, or pick one from My Projects.</div>';
+}
+
+function projectsHtml() {
+  if (!S.projects.length) return '<div class="card empty">No projects yet. Describe an app on the dashboard and press Build.</div>';
+  return `
+    <h3 style="margin:0">My Projects</h3>
+    <div class="grid">${S.projects.map((p) => `
+      <div class="card pcard" data-open="${esc(p.id)}">
+        <h3>${esc(p.name)}</h3>
+        <p>${esc(p.prompt || 'No description')}</p>
+        <div class="row-between">
+          <span class="badge ${esc(p.status)}">${esc(STATUS_LABEL[p.status] || p.status)}</span>
+          <span class="muted" style="font-size:12px">${ago(p.updatedAt)}</span>
+        </div>
+      </div>`).join('')}
+    </div>`;
+}
+
+function providersHtml() {
+  const rows = S.providers.map((p) => {
+    const t = S.tests[p.id];
+    const status = p.kind === 'disabled' ? 'locked' : p.verified ? 'verified' : 'untested';
+    const cooling = p.cooldownUntil > Date.now() ? ' <span class="muted">cooling down</span>' : '';
+    let result = '';
+    if (t?.pending) result = '<span class="muted">testing…</span>';
+    else if (t) result = t.ok
+      ? `<span style="color:var(--ok)">${esc(t.contentType || '')} · ${t.latencyMs} ms</span><div class="muted preview-text">${esc(t.preview || '')}</div>`
+      : `<span style="color:var(--err)">${esc(t.error)}</span>`;
+    else if (p.lastError) result = `<span class="muted">last error: ${esc(p.lastError)}</span>`;
+    return `<tr>
+      <td><b>${esc(p.id)}</b><div class="muted" style="font-size:12px">${esc(p.path)}</div>${p.note ? `<div class="muted" style="font-size:12px">${esc(p.note)}</div>` : ''}</td>
+      <td>${esc(p.kind)}</td>
+      <td><span class="badge ${status}">${status}</span>${cooling}</td>
+      <td class="muted">${p.lastLatencyMs != null ? p.lastLatencyMs + ' ms' : '—'}</td>
+      <td>${p.kind === 'disabled' ? '<span class="muted">locked</span>' : `<button class="btn" data-toggle="${esc(p.id)}">${p.enabled ? 'Disable' : 'Enable'}</button>`}</td>
+      <td><button class="btn" data-test="${esc(p.id)}" ${p.kind === 'disabled' || t?.pending ? 'disabled' : ''}>Test</button></td>
+      <td style="max-width:320px">${result}</td>
+    </tr>`;
+  }).join('');
+  return `
+    <h3 style="margin:0">API Providers</h3>
+    <p class="muted" style="margin:0">Chat providers write the app files. Research and media endpoints can be tested here but are never used for code. A failed chat provider falls back to the next enabled one.</p>
+    <div class="card" style="overflow:auto">
+      <table class="ptable">
+        <thead><tr><th>Endpoint</th><th>Kind</th><th>Status</th><th>Latency</th><th></th><th></th><th>Last test</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function workspaceHtml() {
+  const p = S.current;
+  const status = S.busy ? 'building' : p.status;
+  const tabs = [['code', 'Code'], ['preview', 'Preview'], ['terminal', 'Terminal'], ['logs', 'Logs'], ['agents', 'AI Agents'], ['versions', 'Versions']];
+  const body = S.tab === 'code' ? codeHtml()
+    : S.tab === 'preview' ? previewHtml()
+    : S.tab === 'terminal' || S.tab === 'logs' ? `<pre class="term" id="logPre">${logLines(p)}</pre>`
+    : S.tab === 'agents' ? `<div class="pad" id="agentsBox">${agentTable()}</div>`
+    : versionsHtml(p);
+  return `
+    <section class="card ws">
+      <div class="ws-head">
+        <div class="ws-title">▣ ${esc(p.name)} <span id="wsStatus" class="badge ${esc(status)}">${esc(STATUS_LABEL[status] || status)}</span></div>
+        <div class="spacer"></div>
+        <button class="btn" data-action="rename">Rename</button>
+        <button class="btn" data-action="delete">Delete</button>
+        <button class="btn-grad" data-action="deploy" ${S.busy ? 'disabled' : ''}>Deploy</button>
+      </div>
+      <div class="change">
+        <input id="change" placeholder="Ask for a change, e.g. add a dark mode toggle" ${S.busy ? 'disabled' : ''} />
+        ${providerSelect()}
+        <button class="btn-grad" data-action="change" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Working…' : 'Apply'}</button>
+      </div>
+      <div class="tabs">
+        ${tabs.map(([k, l]) => `<button class="tab ${S.tab === k ? 'on' : ''}" data-tab="${k}">${l}</button>`).join('')}
+      </div>
+      ${body}
+    </section>`;
+}
+
+function codeHtml() {
+  const p = S.current;
+  const id = encodeURIComponent(p.id);
+  const files = Object.keys(p.files);
+  return `
+    <div class="split">
+      <div class="explorer">
+        <div class="label">EXPLORER</div>
+        ${files.length ? files.map((f) => `<button class="file ${f === S.file ? 'on' : ''}" data-file="${esc(f)}">📄 ${esc(f)}</button>`).join('') : '<span class="muted">No files yet</span>'}
+      </div>
+      <div class="editor">
+        <div class="bar-row">
+          <span>${esc(S.file)} <span style="color:var(--warn)">${S.dirty ? '● unsaved' : ''}</span></span>
+          <button class="btn" data-action="save">Save (Ctrl+S)</button>
+        </div>
+        <textarea id="editor" spellcheck="false">${esc(p.files[S.file] ?? '')}</textarea>
+      </div>
+      <div class="pv-col">
+        <div class="bar-row">
+          <span>Live preview</span>
+          <button class="btn" data-action="refresh">↻ Refresh</button>
+        </div>
+        <iframe title="Live preview" sandbox="allow-scripts allow-forms allow-modals" src="/preview/${id}/?t=${Date.now()}"></iframe>
+      </div>
+    </div>`;
+}
+
+function previewHtml() {
+  const widths = { desktop: '100%', tablet: '820px', mobile: '390px' };
+  const id = encodeURIComponent(S.current.id);
+  return `
+    <div class="preview-full">
+      <div class="preview-bar">
+        <div class="seg">
+          ${Object.keys(widths).map((d) => `<button class="${S.device === d ? 'on' : ''}" data-device="${d}">${d[0].toUpperCase() + d.slice(1)}</button>`).join('')}
+        </div>
+        <button class="btn" data-action="refresh">↻ Refresh</button>
+        <a class="btn" href="/preview/${id}/" target="_blank" rel="noopener">Open in new tab ↗</a>
+      </div>
+      <div class="frame-wrap">
+        <iframe id="frame" title="Live preview" sandbox="allow-scripts allow-forms allow-modals"
+          style="width:${widths[S.device]}" src="/preview/${id}/?t=${Date.now()}"></iframe>
+      </div>
+    </div>`;
+}
+
+function logLines(p) {
+  const lines = (p?.lastLog || []).map((l) =>
+    `<span class="lvl-${esc(l.level)}">[${fmtTime(l.at)}] ${esc(l.agent)} ${esc(l.level.toUpperCase())}: ${esc(l.msg)}</span>`);
+  return lines.length ? lines.join('\n') : 'No build output yet. Describe an app and press Build.';
+}
+
+function versionsHtml(p) {
+  if (!p.versions.length) return '<div class="empty">No checkpoints yet. Each successful build or change saves the previous version here.</div>';
+  return `<div class="versions">${p.versions.map((v) => `
+    <div class="ver">
+      <div><b>${ago(v.at)}</b> <span class="muted">${esc(v.label.slice(0, 140))}</span></div>
+      <button class="btn" data-restore="${esc(v.id)}">Restore</button>
+    </div>`).join('')}</div>`;
+}
+
+// Agent state comes from real events: working if it wrote the latest event during a build.
+function agentState(key) {
+  const log = S.current?.lastLog || [];
+  const mine = log.filter((e) => e.agent === key);
+  if (!mine.length) return 'idle';
+  if (S.busy && log[log.length - 1].agent === key) return 'working';
+  return mine[mine.length - 1].level === 'error' ? 'error' : 'done';
+}
+
+function agentTable() {
+  const rows = AGENTS.map((key) => {
+    const st = agentState(key);
+    const mine = (S.current?.lastLog || []).filter((e) => e.agent === key);
+    const last = mine[mine.length - 1];
+    const label = key === 'Deployment' && st === 'idle' ? 'not connected' : st;
+    return `<tr>
+      <td><span class="dot ${st}" style="display:inline-block;margin-right:8px"></span>${esc(key)}</td>
+      <td><span class="badge ${st === 'done' ? 'ready' : st === 'working' ? 'building' : st === 'error' ? 'failed' : ''}">${label}</span></td>
+      <td class="muted">${last ? esc(last.msg) : 'No activity yet'}</td>
+    </tr>`;
+  }).join('');
+  return `<table class="ptable"><thead><tr><th>Agent</th><th>Status</th><th>Last action</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function renderRight() {
+  const p = S.current;
+  const log = p?.lastLog || [];
+  const working = AGENTS.filter((k) => agentState(k) === 'working').length;
+
+  const agents = AGENTS.map((key) => {
+    const st = agentState(key);
+    const label = key === 'Deployment' && st === 'idle' ? 'not connected' : st;
+    return `<div class="arow"><span class="dot ${st}"></span><span>${esc(key)}</span><span class="st">${label}</span></div>`;
+  }).join('');
+
+  const activity = log.slice(-7).reverse()
+    .map((e) => `<div class="act"><b class="lvl-${esc(e.level)}">${esc(e.agent)}</b><span>${esc(e.msg)}</span><div class="muted" style="font-size:11px">${ago(e.at)}</div></div>`)
+    .join('') || '<div class="muted">No agent activity yet.</div>';
+
+  const recent = log.slice(-12).map((l) => `<span class="lvl-${esc(l.level)}">[${fmtTime(l.at)}] ${esc(l.msg)}</span>`).join('\n');
+  const logText = recent || (p ? 'No build output yet.' : 'Open or build a project to see logs.');
+
+  $('#right').innerHTML = `
+    <div class="card panel">
+      <h4>Live Agents <span style="color:var(--cyan);font-size:12px;font-weight:500">${S.busy ? '● ' + Math.max(1, working) + ' working' : ''}</span></h4>
+      ${agents}
+    </div>
+    <div class="card panel">
+      <h4>Agent Activity</h4>
+      ${activity}
+    </div>
+    <div class="card panel">
+      <h4>Build & Deployment Logs</h4>
+      <pre class="logbox">${logText}</pre>
+      <div class="note-box muted">Deploy is not connected yet (Phase 5).</div>
+    </div>`;
+}
+
+/* ---------- Events ---------- */
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-action],[data-go],[data-open],[data-file],[data-tab],[data-device],[data-chip],[data-soon],[data-test],[data-toggle],[data-restore]');
+  if (!el) return;
+  const d = el.dataset;
+
+  if ('soon' in d) return toast('Not part of this build yet.', 'info');
+  if ('go' in d) return go(d.go);
+  if ('chip' in d) {
+    const ta = $('#prompt');
+    if (ta) { ta.value = CHIPS[d.chip]; ta.focus(); }
+    return;
+  }
+  if ('open' in d) return openProject(d.open);
+  if ('file' in d) return switchFile(d.file);
+  if ('tab' in d) { S.tab = d.tab; return renderCenter(); }
+  if ('device' in d) { S.device = d.device; return renderCenter(); }
+  if ('test' in d) return testProvider(d.test);
+  if ('toggle' in d) return toggleProvider(d.toggle);
+  if ('restore' in d) return restore(d.restore);
+
+  switch (d.action) {
+    case 'new':
+      S.current = null;
+      S.view = 'dashboard';
+      renderAll();
+      $('#prompt')?.focus();
+      break;
+    case 'build': return startBuild($('#prompt')?.value.trim(), 'new');
+    case 'change': return applyChange();
+    case 'save': return saveFile();
+    case 'refresh': return renderCenter();
+    case 'deploy': return deploy();
+    case 'rename': return renameProject();
+    case 'delete': return deleteProject();
+  }
+});
+
+document.addEventListener('change', (e) => {
+  if (e.target.matches('[data-provider]')) {
+    S.provider = e.target.value;
+    document.querySelectorAll('[data-provider]').forEach((s) => { s.value = S.provider; });
+  }
+});
+
+document.addEventListener('input', (e) => {
+  if (e.target.id === 'editor') {
+    S.dirty = true;
+    const tag = document.querySelector('.editor .bar-row span span');
+    if (tag) tag.textContent = '● unsaved';
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's' && S.current && S.tab === 'code') {
+    e.preventDefault();
+    saveFile();
+  }
+  if (e.key === 'Enter' && !e.shiftKey && e.target.id === 'prompt') {
+    e.preventDefault();
+    startBuild($('#prompt').value.trim(), 'new');
+  }
+  if (e.key === 'Enter' && !e.shiftKey && e.target.id === 'change') {
+    e.preventDefault();
+    applyChange();
+  }
+});
+
+/* ---------- Init ---------- */
+(async function init() {
+  await Promise.all([refreshList(), loadProviders()]);
+  if (S.projects.length) await openProject(S.projects[0].id);
+  else renderAll();
+})();
+</script>
+</body>
+</html>
